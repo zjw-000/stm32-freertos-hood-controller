@@ -1,0 +1,12 @@
+# Keil MDK intermediate files
+*.o
+*.crf
+*.d
+*.axf
+*.build_log.htm
+*.dep
+*.uvoptx
+*.uvguix.*
+JLinkLog.txt
+*.lst
+*.map
