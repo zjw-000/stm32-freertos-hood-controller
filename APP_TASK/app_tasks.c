@@ -27,7 +27,6 @@
 #include <string.h>
 #include "usart.h"	
 
-
 /*-----------------------------------------------------------
  * 全局变量定义
  *----------------------------------------------------------*/
@@ -51,10 +50,8 @@ static TaskHandle_t xSpeedCalcTaskHandle = NULL;
 	static TaskHandle_t xIAPTaskHandle = NULL;
 #endif
 
-
 /* PID控制器 */
 extern PID_TypeDef g_speedPID;
-
 
 /* 自动模式状态机状态 */
 typedef enum {
@@ -107,7 +104,6 @@ void System_Init(void)
     //系统模式标志：默认设置待机模式
     g_systemState.currentMode = MODE_STANDBY;
 
-
     //速度档位标志：高档位SPEED_HIGH、低档位SPEED_LOW = 0
     g_systemState.speedLevel = SPEED_LOW;
     //电机运行标志位：运行1、停止0
@@ -118,7 +114,6 @@ void System_Init(void)
     g_systemState.actualRPM = 0.0f;
     //设定目标电机转速：0
     g_systemState.targetRPM = 0;
-
 
     //温度标志：0℃
     g_systemState.temperature = 0;
@@ -657,7 +652,6 @@ void AntiBackflowTask(void *pvParameters)
     }
 }
 
-
 /*--------------------------------------------------------------
 *@brief: Bootloader任务,用于固件升级
 *@para: *pvParameters
@@ -747,26 +741,6 @@ void iap_task(void *pvParameters)
 		}
 	}
 }
-
-
-/*--------------------------------------------------------------------------------
-*@brief: DMA中断任务，用于接收APP程序
-*@para: *pvParameters
-*@return: none
-----------------------------------------------------------------------------------*/	  
-void DMA1_Channel5_IRQHandler(void) 
-{
-		BaseType_t xHigherPriorityTaskWoken = pdFALSE;/*释放二值信号量所需参数，初始化为pdFalse*/
-		// 检查DMA传输完成中断
-		if (DMA_GetITStatus(DMA1_IT_TC5))
-		{
-            // 清除中断标志
-            DMA_ClearITPendingBit(DMA1_IT_TC5);
-            DMA_Cmd(DMA1_Channel5, DISABLE);
-
- #if DEBUG
-            printf("DMA TC Triggered (CNDTR=0)\r\n"); // 调试用
-#endif
             if (g_iapSemaphore != NULL)
             {
                 xSemaphoreGiveFromISR(g_iapSemaphore, &xHigherPriorityTaskWoken);/*释放二值信号量*/	
@@ -777,8 +751,161 @@ void DMA1_Channel5_IRQHandler(void)
 }
 #endif
 
+/*-----------------------------------------------------------
+ * 切换工作模式
+ *----------------------------------------------------------*/
+void System_SwitchMode(void)
+{
+    if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
+    {
+        /* 模式循环切换：待机 -> 手动 -> 自动 -> 防回流 -> 待机 */
+        switch (g_systemState.currentMode)
+        {
+            case MODE_STANDBY:
+                g_systemState.currentMode = MODE_MANUAL;
+                break;
+            case MODE_MANUAL:
+                g_systemState.currentMode = MODE_AUTO;
+                g_autoModeState = AUTO_STATE_STARTUP;
+                break;
+            case MODE_AUTO:
+                g_systemState.currentMode = MODE_ANTI_BACKFLOW;
+                break;
+            case MODE_ANTI_BACKFLOW:
+                g_systemState.currentMode = MODE_STANDBY;
+                break;
+        }
+        
+        /* 切换模式时停止电机（除自动模式外） */
+        if (g_systemState.currentMode != MODE_AUTO)
+        {
+            g_systemState.motorRunning = 0;
+            motor_stop();
+        }
+        
+        xSemaphoreGive(g_dataMutex);
+    }
+}
 
 /*-----------------------------------------------------------
+ * 切换档位
+ *----------------------------------------------------------*/
+void System_SwitchSpeedLevel(void)
+{
+    if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
+    {
+        /* 档位循环切换：LOW -> HIGH -> LOW */
+        switch (g_systemState.speedLevel)
+        {
+            case SPEED_LOW:
+                g_systemState.speedLevel = SPEED_HIGH;
+                break;
+            case SPEED_HIGH:
+                g_systemState.speedLevel = SPEED_LOW;
+                break;
+        }
+        xSemaphoreGive(g_dataMutex);
+    }
+}
+
+/*-----------------------------------------------------------
+ * 切换电机开关
+ *----------------------------------------------------------*/
+void System_ToggleMotor(void)
+{
+    if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
+    {
+        if (g_systemState.motorRunning)
+        {
+            /* 关闭电机：强制切换到待机模式，确保MotorControlTask不会重新拉起电机 */
+            motor_stop();
+            g_systemState.motorRunning = 0;
+            g_systemState.currentMode = MODE_STANDBY;
+            Show_Str(0, 0, BLUE, WHITE, "Motor Stopped", 16, 0);
+        }
+        else
+        {
+            /* 开启电机：强制切换到手动模式，确保MotorControlTask持续驱动电机 */
+            motor_start();
+            g_systemState.motorRunning = 1;
+            g_systemState.currentMode = MODE_MANUAL;
+            Show_Str(0, 0, BLUE, WHITE, "Motor Started", 16, 0);
+        }
+        
+        xSemaphoreGive(g_dataMutex);
+    }
+}
+
+/*-----------------------------------------------------------
+ * 获取系统状态
+ *----------------------------------------------------------*/
+SystemState_t* System_GetState(void)
+{
+    return &g_systemState;
+}
+
+/*-----------------------------------------------------------
+ * 速度计算任务 - 由TIM4中断触发，优先级为6
+ *----------------------------------------------------------*/
+void SpeedCalcTask(void *pvParameters)
+{
+    int encoderCount;
+    
+    while (1)
+    {
+        /* 等待TIM4中断发送的信号量 */
+        if (xSemaphoreTake(g_speedCalcSemaphore, portMAX_DELAY) == pdTRUE)
+        {
+            /* 获取编码器计数值 */
+            encoderCount = get_encoder_value();
+            
+            /* 计算电机转速（50ms计算一次） */
+            speed = get_speed(encoderCount, 50);
+        }
+    }
+}
+
+/*-----------------------------------------------------------
+ * TIM2中断服务程序 - 编码器溢出处理
+ *----------------------------------------------------------*/
+void TIM2_IRQHandler(void)
+{
+    // 假如TIM2发生了更新中断（溢出），判断溢出方向
+    if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
+    {
+        TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+        
+        /* 根据计数方向更新溢出计数器 */
+        // 编码器模式下，TIM_CR1_DIR 位表示当前计数方向
+        if (TIM_GetDirection(TIM2))  // 1: 正在向下计数（反转向下溢出）DIR标志位为1
+        {
+            overflow--;     /* 递减计数 */
+        }
+        else // 0: 正在向上计数（正转向上溢出）DIR标志位为0
+        {
+            overflow++;     /* 递增计数 */
+        }
+    }
+}
+
+/*-----------------------------------------------------------
+ * TIM4中断服务程序 - 触发速度计算任务，硬件中断优先级，高于任务优先级
+ *----------------------------------------------------------*/
+void TIM4_IRQHandler(void)
+{
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    
+    if (TIM_GetITStatus(TIM4, TIM_IT_Update) != RESET)
+    {
+        TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
+        
+        /* 发送信号量通知SpeedCalcTask执行速度计算 */
+        xSemaphoreGiveFromISR(g_speedCalcSemaphore, &xHigherPriorityTaskWoken);
+        
+        /* 如果需要，触发上下文切换 */
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+}/*-----------------------------------------------------------
  * 切换工作模式
  *----------------------------------------------------------*/
 void System_SwitchMode(void)
