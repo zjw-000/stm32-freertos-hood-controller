@@ -4,6 +4,10 @@
 #if SYSTEM_SUPPORT_OS
 
 #include "FreeRTOS.h"					/*freertos使用--不甘心的咸鱼注*/
+#include "semphr.h"
+#if ifopen
+extern SemaphoreHandle_t g_iapSemaphore;
+#endif
 
 #endif
 /*
@@ -118,6 +122,9 @@ void uart_init(u32 bound)
 	/*在使用串口DMA功能时，此时需要关闭串口接收中断，因此注释掉--不甘心的咸鱼注*/
     //USART_ITConfig(USART1, USART_IT_RXNE, ENABLE);//开启串口接受中断
 	
+#if ifopen
+	USART_ITConfig(USART1, USART_IT_IDLE, ENABLE); // 使能串口1总线空闲中断(IDLE)
+#endif
 	USART_DMACmd(USART1, USART_DMAReq_Rx, ENABLE);	/*使能串口DMA接收--不甘心的咸鱼注*/ 
 	USART_Cmd(USART1, ENABLE);                   	 //使能串口1 
 
@@ -126,41 +133,54 @@ void uart_init(u32 bound)
 void USART1_IRQHandler(void)                	//串口1中断服务程序
 {
 	u8 Res;
-/**************************************************************/
-/*在使用FreeRtos时，不需要用这个函数，注释掉--不甘心的咸鱼注*/
-//#if SYSTEM_SUPPORT_OS 		//如果SYSTEM_SUPPORT_OS为真，则需要支持OS.
-//	OSIntEnter();    
-//#endif
-/**************************************************************/
-	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)  //接收中断(接收到的数据必须是0x0d 0x0a结尾)
+#if SYSTEM_SUPPORT_OS
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+#endif
+
+#if ifopen
+	/* 串口空闲中断处理：总线在一帧固件数据传输完成后变为空闲，自动触发本中断 */
+	if(USART_GetITStatus(USART1, USART_IT_IDLE) != RESET)
+	{
+		/* 清除IDLE中断标志位：先读SR寄存器，再读DR寄存器（STM32硬件标准清除序列） */
+		volatile uint32_t temp = USART1->SR;
+		temp = USART1->DR;
+		(void)temp; // 防止编译器告警
+
+		/* 关闭DMA接收通道，锁存当前已接收的字节计数 */
+		DMA_Cmd(DMA1_Channel5, DISABLE);
+
+		/* 释放二值信号量，唤醒iap_task执行动态长度校验与烧写 */
+		if(g_iapSemaphore != NULL)
 		{
-		Res =USART_ReceiveData(USART1);	//读取接收到的数据
+			xSemaphoreGiveFromISR(g_iapSemaphore, &xHigherPriorityTaskWoken);
+		}
+		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+		return;
+	}
+#endif
+
+	if(USART_GetITStatus(USART1, USART_IT_RXNE) != RESET)  //接收中断(接收到的数据必须是0x0d 0x0a结尾)
+	{
+		Res = USART_ReceiveData(USART1);	//读取接收到的数据
 		
 		if((USART_RX_STA&0x8000)==0)//接收未完成
-			{
+		{
 			if(USART_RX_STA&0x4000)//接收到了0x0d
-				{
+			{
 				if(Res!=0x0a)USART_RX_STA=0;//接收错误,重新开始
 				else USART_RX_STA|=0x8000;	//接收完成了 
-				}
+			}
 			else //还没收到0X0D
-				{	
+			{	
 				if(Res==0x0d)USART_RX_STA|=0x4000;
 				else
-					{
+				{
 					USART_RX_BUF[USART_RX_STA&0X3FFF]=Res ;
 					USART_RX_STA++;
 					if(USART_RX_STA>(USART_REC_LEN-1))USART_RX_STA=0;//接收数据错误,重新开始接收	  
-					}		 
-				}
-			}   		 
-     } 
-/**********************************************************/
-/*在使用FreeRtos时，不需要用这个函数，注释掉--不甘心的咸鱼注*/
-//#if SYSTEM_SUPPORT_OS 	//如果SYSTEM_SUPPORT_OS为真，则需要支持OS.
-//	OSIntExit();  											 
-//#endif
-/***************************************************/
-} 
-#endif	
-
+				}		 
+			}
+		}   		 
+    } 
+}
+#endif
