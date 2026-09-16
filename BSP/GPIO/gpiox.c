@@ -1,13 +1,13 @@
 #include "gpiox.h"
 /***********************
-é¡¹ç›®åï¼šGPIOé©±åŠ¨æ–‡ä»¶
-ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
-é—²é±¼å·ï¼štb43915564
-ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
-é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ÏîÄ¿Ãû£ºGPIOÇı¶¯ÎÄ¼ş
+×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
+ÏĞÓãºÅ£ºtb43915564
+ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
 ***********************/
 
-/* GPIOåˆå§‹åŒ–å‡½æ•° */
+/* GPIO³õÊ¼»¯º¯Êı */
 void io_set(gpioled port,u16 pin,GPIOMode_TypeDef mode)
 {
 	GPIO_InitTypeDef  GPIO_InitStructure;
@@ -23,16 +23,16 @@ void io_set(gpioled port,u16 pin,GPIOMode_TypeDef mode)
 	GPIO_InitStructure.GPIO_Pin = pin;  
 	GPIO_InitStructure.GPIO_Mode = mode;  		
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(port, &GPIO_InitStructure);			// åˆå§‹åŒ–GPIO
+	GPIO_Init(port, &GPIO_InitStructure);			// ³õÊ¼»¯GPIO
 }
 
-/* è®¾ç½®GPIOå¼•è„šç”µå¹³ä¸ºé«˜ */
+/* ÉèÖÃGPIOÒı½ÅµçÆ½Îª¸ß */
 void io_set_bit(gpioled port,u16 pin)
 {
 	GPIO_SetBits(port,pin);
 }
 
-/* è®¾ç½®GPIOå¼•è„šç”µå¹³ä¸ºä½ */
+/* ÉèÖÃGPIOÒı½ÅµçÆ½ÎªµÍ */
 void io_reset_bit(gpioled port,u16 pin)
 {
 	GPIO_ResetBits(port,pin);

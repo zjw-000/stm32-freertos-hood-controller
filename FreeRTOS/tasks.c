@@ -2124,8 +2124,8 @@ BaseType_t xAlreadyYielded = pdFALSE;
 }
 /*-----------------------------------------------------------*/
 
-/*FreeRTOSæ—¶é’ŸèŠ‚æ‹ç»Ÿè®¡å‡½æ•°ï¼Œå½“æ¯ä¸ªæ—¶é’ŸèŠ‚æ‹å‘ç”Ÿï¼ŒXTickCountå€¼åŠ ä¸€ï¼Œä¹Ÿå°±æ˜¯æ¯1 msåŠ 1
-----ä¸ç”˜å¿ƒçš„å’¸é±¼æ³¨*/
+/*FreeRTOSÊ±ÖÓ½ÚÅÄÍ³¼Æº¯Êı£¬µ±Ã¿¸öÊ±ÖÓ½ÚÅÄ·¢Éú£¬XTickCountÖµ¼ÓÒ»£¬Ò²¾ÍÊÇÃ¿1 ms¼Ó1
+----²»¸ÊĞÄµÄÏÌÓã×¢*/
 TickType_t xTaskGetTickCount( void )
 {
 TickType_t xTicks;
@@ -2518,8 +2518,8 @@ BaseType_t xSwitchRequired = pdFALSE;
 		delayed lists if it wraps to 0. */
 		xTickCount = xConstTickCount;
 
-		if( xConstTickCount == ( TickType_t ) 0U )/*å‘ç”Ÿæº¢å‡ºï¼Œå› ä¸ºæ­¤å˜é‡æ˜¯32ä½æ— ç¬¦å·æ•´æ•°ï¼Œæœ€å¤§å€¼ä¸º0xFFFFFFFFï¼Œ
-		å½“è¾¾åˆ°æœ€å¤§å€¼æ—¶ï¼Œå†å¢åŠ 1å°±ä¼šæº¢å‡ºä¸º0--ä¸ç”˜å¿ƒçš„å’¸é±¼æ³¨*/
+		if( xConstTickCount == ( TickType_t ) 0U )/*·¢ÉúÒç³ö£¬ÒòÎª´Ë±äÁ¿ÊÇ32Î»ÎŞ·ûºÅÕûÊı£¬×î´óÖµÎª0xFFFFFFFF£¬
+		µ±´ïµ½×î´óÖµÊ±£¬ÔÙÔö¼Ó1¾Í»áÒç³öÎª0--²»¸ÊĞÄµÄÏÌÓã×¢*/
 		{
 			taskSWITCH_DELAYED_LISTS();
 		}
@@ -3194,7 +3194,7 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 		to 1.  This is to ensure portSUPPRESS_TICKS_AND_SLEEP() is called when
 		user defined low power mode	implementations require
 		configUSE_TICKLESS_IDLE to be set to a value other than 1. */
-		#if ( configUSE_TICKLESS_IDLE != 0 )/*å¼€å¯ä½åŠŸè€—æ¨¡å¼åæ‰§è¡Œä¸‹åˆ—ä»£ç å—--ä¸ç”˜å¿ƒçš„å’¸é±¼*/
+		#if ( configUSE_TICKLESS_IDLE != 0 )/*¿ªÆôµÍ¹¦ºÄÄ£Ê½ºóÖ´ĞĞÏÂÁĞ´úÂë¿é--²»¸ÊĞÄµÄÏÌÓã*/
 		{
 		TickType_t xExpectedIdleTime;
 
@@ -3708,7 +3708,7 @@ TCB_t *pxTCB;
 
 	void vTaskPriorityInherit( TaskHandle_t const pxMutexHolder )
 	{
-	TCB_t * const pxTCB = ( TCB_t * ) pxMutexHolder;/*æ‰¾åˆ°æŒæœ‰äº’æ–¥é‡çš„ä»»åŠ¡TCB */
+	TCB_t * const pxTCB = ( TCB_t * ) pxMutexHolder;/*ÕÒµ½³ÖÓĞ»¥³âÁ¿µÄÈÎÎñTCB */
 
 		/* If the mutex was given back by an interrupt while the queue was
 		locked then the mutex holder might now be NULL. */
@@ -3718,12 +3718,12 @@ TCB_t *pxTCB;
 			the task attempting to obtain the mutex then it will temporarily
 			inherit the priority of the task attempting to obtain the mutex. */
 			if( pxTCB->uxPriority < pxCurrentTCB->uxPriority )
-			/*åˆ¤æ–­æŒæœ‰äº’æ–¥é‡çš„ä»»åŠ¡ä¼˜å…ˆçº§æ˜¯å¦ä½äºæƒ³è¦è·å–äº’æ–¥é‡çš„ä»»åŠ¡ä¼˜å…ˆçº§ï¼Œæ˜¯åˆ™éœ€è¦æå‡ä¼˜å…ˆçº§*/
+			/*ÅĞ¶Ï³ÖÓĞ»¥³âÁ¿µÄÈÎÎñÓÅÏÈ¼¶ÊÇ·ñµÍÓÚÏëÒª»ñÈ¡»¥³âÁ¿µÄÈÎÎñÓÅÏÈ¼¶£¬ÊÇÔòĞèÒªÌáÉıÓÅÏÈ¼¶*/
 			{
 				/* Adjust the mutex holder state to account for its new
 				priority.  Only reset the event list item value if the value is
 				not	being used for anything else. */
-				/*å¦‚æœäº‹ä»¶åˆ—è¡¨é¡¹å€¼æ²¡æœ‰è¢«å…¶ä»–ç”¨é€”ä½¿ç”¨ï¼Œåˆ™æ›´æ–°äº‹ä»¶åˆ—è¡¨é¡¹å€¼*/
+				/*Èç¹ûÊÂ¼şÁĞ±íÏîÖµÃ»ÓĞ±»ÆäËûÓÃÍ¾Ê¹ÓÃ£¬Ôò¸üĞÂÊÂ¼şÁĞ±íÏîÖµ*/
 				if( ( listGET_LIST_ITEM_VALUE( &( pxTCB->xEventListItem ) ) & taskEVENT_LIST_ITEM_VALUE_IN_USE ) == 0UL )
 				{
 					listSET_LIST_ITEM_VALUE( &( pxTCB->xEventListItem ), ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) pxCurrentTCB->uxPriority ); /*lint !e961 MISRA exception as the casts are only redundant for some ports. */
@@ -3735,7 +3735,7 @@ TCB_t *pxTCB;
 
 				/* If the task being modified is in the ready state it will need
 				to be moved into a new list. */
-				/*æ£€æŸ¥æŒæœ‰äº’æ–¥é‡çš„ä»»åŠ¡æ˜¯å¦åœ¨å°±ç»ªåˆ—è¡¨ä¸­ï¼Œå¦‚æœæ˜¯çš„è¯éœ€è¦ç§»é™¤ï¼Œå†æå‡å…¶ä¼˜å…ˆçº§*/
+				/*¼ì²é³ÖÓĞ»¥³âÁ¿µÄÈÎÎñÊÇ·ñÔÚ¾ÍĞ÷ÁĞ±íÖĞ£¬Èç¹ûÊÇµÄ»°ĞèÒªÒÆ³ı£¬ÔÙÌáÉıÆäÓÅÏÈ¼¶*/
 				if( listIS_CONTAINED_WITHIN( &( pxReadyTasksLists[ pxTCB->uxPriority ] ), &( pxTCB->xStateListItem ) ) != pdFALSE )
 				{
 					if( uxListRemove( &( pxTCB->xStateListItem ) ) == ( UBaseType_t ) 0 )
@@ -3748,10 +3748,10 @@ TCB_t *pxTCB;
 					}
 
 					/* Inherit the priority before being moved into the new list. */
-					pxTCB->uxPriority = pxCurrentTCB->uxPriority;/*æå‡ä¼˜å…ˆçº§*/
+					pxTCB->uxPriority = pxCurrentTCB->uxPriority;/*ÌáÉıÓÅÏÈ¼¶*/
 					prvAddTaskToReadyList( pxTCB );
 				}
-				else/*ä¸åœ¨å°±ç»ªçŠ¶æ€ä¸‹ç›´æ¥æå‡å…¶ä¼˜å…ˆçº§ä¸ºç­‰å¾…äº’æ–¥é‡ä»»åŠ¡çš„ä¼˜å…ˆçº§*/
+				else/*²»ÔÚ¾ÍĞ÷×´Ì¬ÏÂÖ±½ÓÌáÉıÆäÓÅÏÈ¼¶ÎªµÈ´ı»¥³âÁ¿ÈÎÎñµÄÓÅÏÈ¼¶*/
 				{
 					/* Just inherit the priority. */
 					pxTCB->uxPriority = pxCurrentTCB->uxPriority;
@@ -3780,7 +3780,7 @@ TCB_t *pxTCB;
 	TCB_t * const pxTCB = ( TCB_t * ) pxMutexHolder;
 	BaseType_t xReturn = pdFALSE;
 
-		if( pxMutexHolder != NULL )/*åˆ¤æ–­æ­¤äº’æ–¥é‡æ˜¯å¦è¢«å ç”¨ï¼Œä¸ºNULLè¡¨ç¤ºæ— ä»»åŠ¡æŒæœ‰*/
+		if( pxMutexHolder != NULL )/*ÅĞ¶Ï´Ë»¥³âÁ¿ÊÇ·ñ±»Õ¼ÓÃ£¬ÎªNULL±íÊ¾ÎŞÈÎÎñ³ÖÓĞ*/
 		{
 			/* A task can only have an inherited priority if it holds the mutex.
 			If the mutex is held by a task then it cannot be given from an
@@ -3789,16 +3789,16 @@ TCB_t *pxTCB;
 			configASSERT( pxTCB == pxCurrentTCB );
 
 			configASSERT( pxTCB->uxMutexesHeld );
-			( pxTCB->uxMutexesHeld )--;/*äº’æ–¥é‡æŒæœ‰è®¡æ•°å‡1ï¼Œç”±äºä»»åŠ¡å¯èƒ½æŒæœ‰å¤šä¸ªäº’æ–¥é‡ï¼Œè¯¥å˜é‡è¡¨ç¤ºäº’æ–¥é‡ä¸ªæ•°*/
+			( pxTCB->uxMutexesHeld )--;/*»¥³âÁ¿³ÖÓĞ¼ÆÊı¼õ1£¬ÓÉÓÚÈÎÎñ¿ÉÄÜ³ÖÓĞ¶à¸ö»¥³âÁ¿£¬¸Ã±äÁ¿±íÊ¾»¥³âÁ¿¸öÊı*/
 
 			/* Has the holder of the mutex inherited the priority of another
 			task? */
-			/*uxPriorityä»£è¡¨å½“å‰ä¼˜å…ˆçº§ï¼ˆå¯èƒ½å·²è¢«ç»§æ‰¿æå‡ï¼‰ï¼ŒuxBasePriorityä»£è¡¨åŸå§‹ä¼˜å…ˆçº§ï¼Œå¦‚æœä¸¤è€…ä¸åŒï¼Œ
-			è¯´æ˜ä¼˜å…ˆçº§å·²ç»è¢«ç»§æ‰¿äº†ï¼Œéœ€è¦è¿›è¡Œä¼˜å…ˆçº§é™çº§*/
+			/*uxPriority´ú±íµ±Ç°ÓÅÏÈ¼¶£¨¿ÉÄÜÒÑ±»¼Ì³ĞÌáÉı£©£¬uxBasePriority´ú±íÔ­Ê¼ÓÅÏÈ¼¶£¬Èç¹ûÁ½Õß²»Í¬£¬
+			ËµÃ÷ÓÅÏÈ¼¶ÒÑ¾­±»¼Ì³ĞÁË£¬ĞèÒª½øĞĞÓÅÏÈ¼¶½µ¼¶*/
 			if( pxTCB->uxPriority != pxTCB->uxBasePriority )
 			{
 				/* Only disinherit if no other mutexes are held. */
-				/*åˆ¤æ–­å½“å‰é‡Šæ”¾çš„äº’æ–¥é‡æ˜¯å¦ä¸ºæœ€åä¸€ä¸ªï¼Œæ˜¯æ‰èƒ½æ¢å¤åŸæœ‰ä¼˜å…ˆçº§*/
+				/*ÅĞ¶Ïµ±Ç°ÊÍ·ÅµÄ»¥³âÁ¿ÊÇ·ñÎª×îºóÒ»¸ö£¬ÊÇ²ÅÄÜ»Ö¸´Ô­ÓĞÓÅÏÈ¼¶*/
 				if( pxTCB->uxMutexesHeld == ( UBaseType_t ) 0 )
 				{
 					/* A task can only have an inherited priority if it holds
@@ -3808,8 +3808,8 @@ TCB_t *pxTCB;
 					the	holding task from the ready	list. */
 					if( uxListRemove( &( pxTCB->xStateListItem ) ) == ( UBaseType_t ) 0 )
 					{
-						/*å°†ä»»åŠ¡ä»å½“å‰ä¼˜å…ˆçº§å¯¹åº”çš„å°±ç»ªè¡¨ä¸­ç§»é™¤ï¼Œå¦‚æœè¯¥ä¼˜å…ˆçº§åˆ—è¡¨ä¸ºç©ºï¼Œ
-						å°±æ¸…é™¤å°±ç»ªè¡¨ä¸­çš„å¯¹åº”ä½*/
+						/*½«ÈÎÎñ´Óµ±Ç°ÓÅÏÈ¼¶¶ÔÓ¦µÄ¾ÍĞ÷±íÖĞÒÆ³ı£¬Èç¹û¸ÃÓÅÏÈ¼¶ÁĞ±íÎª¿Õ£¬
+						¾ÍÇå³ı¾ÍĞ÷±íÖĞµÄ¶ÔÓ¦Î»*/
 						taskRESET_READY_PRIORITY( pxTCB->uxPriority );
 					}
 					else
@@ -3820,14 +3820,14 @@ TCB_t *pxTCB;
 					/* Disinherit the priority before adding the task into the
 					new	ready list. */
 					traceTASK_PRIORITY_DISINHERIT( pxTCB, pxTCB->uxBasePriority );
-					pxTCB->uxPriority = pxTCB->uxBasePriority;/*æ¢å¤åŸå§‹ä¼˜å…ˆçº§*/
+					pxTCB->uxPriority = pxTCB->uxBasePriority;/*»Ö¸´Ô­Ê¼ÓÅÏÈ¼¶*/
 
 					/* Reset the event list item value.  It cannot be in use for
 					any other purpose if this task is running, and it must be
 					running to give back the mutex. */
-					/*æ›´æ–°äº‹ä»¶åˆ—è¡¨é¡¹ï¼Œç”¨äºäº‹ä»¶åˆ—è¡¨ä¸­æŒ‰ä¼˜å…ˆçº§æ’åº*/
+					/*¸üĞÂÊÂ¼şÁĞ±íÏî£¬ÓÃÓÚÊÂ¼şÁĞ±íÖĞ°´ÓÅÏÈ¼¶ÅÅĞò*/
 					listSET_LIST_ITEM_VALUE( &( pxTCB->xEventListItem ), ( TickType_t ) configMAX_PRIORITIES - ( TickType_t ) pxTCB->uxPriority ); /*lint !e961 MISRA exception as the casts are only redundant for some ports. */
-					prvAddTaskToReadyList( pxTCB );/*é‡æ–°åŠ å…¥å°±ç»ªè¡¨*/
+					prvAddTaskToReadyList( pxTCB );/*ÖØĞÂ¼ÓÈë¾ÍĞ÷±í*/
 
 					/* Return true to indicate that a context switch is required.
 					This is only actually required in the corner case whereby

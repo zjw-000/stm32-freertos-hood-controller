@@ -1,89 +1,89 @@
 #include "dma.h"
 
 /*********************************************************
-项目名：dma驱动文件
-作者：不甘心的咸鱼--闲鱼/不搭(414192836)--小红书
-闲鱼号：tb43915564
-修改日期：2026/2/1
-项目已申请版权，请勿倒卖！ 
+��Ŀ����dma�����ļ�
+���ߣ������ĵ�����--����/����(414192836)--С����
+����ţ�tb43915564
+�޸����ڣ�2026/2/1
+��Ŀ�������Ȩ���������� 
 *********************************************************/
 DMA_InitTypeDef DMA_InitStructure;
 
-u16 DMA1_MEM_LEN;//保存DMA每次数据传送的长度 
-//DMA1的各通道配置
-//这里的传输形式是固定的,这点要根据不同的情况来修改
-//从存储器->外设模式/8位数据宽度/存储器增量模式
-//DMA_CHx:DMA通道CHx
-//cpar:外设地址
-//cmar:存储器地址
-//cndtr:数据传输量 
+u16 DMA1_MEM_LEN;//����DMAÿ�����ݴ��͵ĳ��� 
+//DMA1�ĸ�ͨ������
+//����Ĵ�����ʽ�ǹ̶���,���Ҫ���ݲ�ͬ��������޸�
+//�Ӵ洢��->����ģʽ/8λ���ݿ���/�洢������ģʽ
+//DMA_CHx:DMAͨ��CHx
+//cpar:�����ַ
+//cmar:�洢����ַ
+//cndtr:���ݴ����� 
 void MYDMA_Config(DMA_Channel_TypeDef* DMA_CHx,u32 cpar,u32 cmar,u16 cndtr)
 {
 	NVIC_InitTypeDef NVIC_InitStructure;
-	// 1. 给 DMA1 控制器通电供电
- 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);	//使能DMA传输
+	// 1. �� DMA1 ������ͨ�繩��
+ 	RCC_AHBPeriphClockCmd(RCC_AHBPeriph_DMA1, ENABLE);	//ʹ��DMA����
 	
-	DMA_DeInit(DMA_CHx);   //将DMA的通道1寄存器重设为缺省值
+	DMA_DeInit(DMA_CHx);   //��DMA��ͨ��1�Ĵ�������Ϊȱʡֵ
 
 	DMA1_MEM_LEN=cndtr;
-	// 2. 传送带两头的起点和终点
-	DMA_InitStructure.DMA_PeripheralBaseAddr = cpar;  //DMA外设基地址// 起点：外设地址（比如串口数据寄存器 &USART1->DR）
-	DMA_InitStructure.DMA_MemoryBaseAddr = cmar;  //DMA内存基地址// 终点：内存地址（比如你的接收数组 receive_buff 的首地址）
+	// 2. ���ʹ���ͷ�������յ�
+	DMA_InitStructure.DMA_PeripheralBaseAddr = cpar;  //DMA�������ַ// ��㣺�����ַ�����紮�����ݼĴ��� &USART1->DR��
+	DMA_InitStructure.DMA_MemoryBaseAddr = cmar;  //DMA�ڴ����ַ// �յ㣺�ڴ��ַ��������Ľ������� receive_buff ���׵�ַ��
 
-	// 3. 传送带的流向
-	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC ;  //数据传输方向，从外设到内存
+	// 3. ���ʹ�������
+	DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralSRC ;  //���ݴ��䷽�򣬴����赽�ڴ�
 
-	// 4. 这次任务总共搬多少个包裹？
-	DMA_InitStructure.DMA_BufferSize = cndtr;  //DMA通道的DMA缓存的大小// 比如设置 256，表示搬 256 个字节
+	// 4. ��������ܹ�����ٸ�������
+	DMA_InitStructure.DMA_BufferSize = cndtr;  //DMAͨ����DMA����Ĵ�С// �������� 256����ʾ�� 256 ���ֽ�
 
-	// 5. 【核心灵魂细节！】地址要不要自己往前移？
-	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  //外设地址寄存器不变// 外设地址【不递增】！
-	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  //内存地址寄存器递增// 内存地址【递增】！
+	// 5. ���������ϸ�ڣ�����ַҪ��Ҫ�Լ���ǰ�ƣ�
+	DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;  //�����ַ�Ĵ�������// �����ַ������������
+	DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;  //�ڴ��ַ�Ĵ�������// �ڴ��ַ����������
 
-	// 6. 包裹大小：每次搬 1 个字节（Byte）
-	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  //外设读数据宽度为8位
-	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte; //内存写数据宽度为8位
+	// 6. ������С��ÿ�ΰ� 1 ���ֽڣ�Byte��
+	DMA_InitStructure.DMA_PeripheralDataSize = DMA_PeripheralDataSize_Byte;  //��������ݿ���Ϊ8λ
+	DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte; //�ڴ�д���ݿ���Ϊ8λ
 
-	// 7. 搬完这一批就停下（Normal 正常单次模式）
-	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  //工作在正常模式
+	// 7. ������һ����ͣ�£�Normal ��������ģʽ��
+	DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;  //����������ģʽ
 
-	// 8. 优先级很高（High），抢总线带宽很积极
-	DMA_InitStructure.DMA_Priority = DMA_Priority_High; //DMA通道 x拥有高优先级 
+	// 8. ���ȼ��ܸߣ�High���������ߴ����ܻ���
+	DMA_InitStructure.DMA_Priority = DMA_Priority_High; //DMAͨ�� xӵ�и����ȼ� 
 
-	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  //DMA通道x没有设置为内存到内存传输
-	// 9. 生效配置
-	DMA_Init(DMA_CHx, &DMA_InitStructure);  //根据DMA_InitStruct中指定的参数初始化DMA的通道USART1_Tx_DMA_Channel所标识的寄存器
+	DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;  //DMAͨ��xû������Ϊ�ڴ浽�ڴ洫��
+	// 9. ��Ч����
+	DMA_Init(DMA_CHx, &DMA_InitStructure);  //����DMA_InitStruct��ָ���Ĳ�����ʼ��DMA��ͨ��USART1_Tx_DMA_Channel����ʶ�ļĴ���
 	
-	// 10. 给传送带配一个大喇叭（DMA 传输完成中断）
-	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel5_IRQn; // DMA1通道5中断// DMA1 通道5（专属对应 USART1_RX！）
-	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 4; // 抢占优先级
-    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0; // 子优先级
-    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE; // 使能中断
+	// 10. �����ʹ���һ�������ȣ�DMA ��������жϣ�
+	NVIC_InitStructure.NVIC_IRQChannel = DMA1_Channel5_IRQn; // DMA1ͨ��5�ж�// DMA1 ͨ��5��ר����Ӧ USART1_RX����
+	NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 4; // ��ռ���ȼ�
+    NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0; // �����ȼ�
+    NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE; // ʹ���ж�
     NVIC_Init(&NVIC_InitStructure);
 		
 		
-    // 开启DMA传输完成中断功能
-    DMA_ITConfig(DMA1_Channel5, DMA_IT_TC, ENABLE);// 打开 TC（Transfer Complete，搬运完成）报警
+    // ����DMA��������жϹ���
+    DMA_ITConfig(DMA1_Channel5, DMA_IT_TC, ENABLE);// �� TC��Transfer Complete��������ɣ�����
     
-    DMA_Cmd(DMA1_Channel5, ENABLE);//使能后，开启一次DMA传输// 开启传送带，开始干活！
+    DMA_Cmd(DMA1_Channel5, ENABLE);//ʹ�ܺ󣬿���һ��DMA����// �������ʹ�����ʼ�ɻ
 } 
 
-//重新开启一次DMA传输
+//���¿���һ��DMA����
 void MYDMA_Enable(DMA_Channel_TypeDef*DMA_CHx)
 { 
-	// 1. 先把传送带按暂停
-	DMA_Cmd(DMA_CHx, DISABLE );  //关闭USART1 RX DMA1 所指示的通道      
-	// 2. 把倒计时计数器重新装满（重新设为 256）
- 	DMA_SetCurrDataCounter(DMA_CHx,DMA1_MEM_LEN);//DMA通道的DMA缓存的大小
-	// 3. 重新开动传送带！
- 	DMA_Cmd(DMA_CHx, ENABLE);  //使能USART1 RX DMA1 所指示的通道 
+	// 1. �ȰѴ��ʹ�����ͣ
+	DMA_Cmd(DMA_CHx, DISABLE );  //�ر�USART1 RX DMA1 ��ָʾ��ͨ��      
+	// 2. �ѵ���ʱ����������װ����������Ϊ 256��
+ 	DMA_SetCurrDataCounter(DMA_CHx,DMA1_MEM_LEN);//DMAͨ����DMA����Ĵ�С
+	// 3. ���¿������ʹ���
+ 	DMA_Cmd(DMA_CHx, ENABLE);  //ʹ��USART1 RX DMA1 ��ָʾ��ͨ�� 
 }	  
 
 #if ifopen
- /*计算DMA接收到的数据--不甘心的咸鱼*/
+ /*����DMA���յ�������--�����ĵ�����*/
 uint16_t GetReceivedDataLength(void) {
-    // 计算已接收的数据量--不甘心的咸鱼
-	// 总容量 - 当前还没搬完的剩余倒计数 = 已经搬进来的货！
+    // �����ѽ��յ�������--�����ĵ�����
+	// ������ - ��ǰ��û�����ʣ�൹���� = �Ѿ�������Ļ���
     return buff_size - DMA_GetCurrDataCounter(DMA1_Channel5);
 }
 #endif

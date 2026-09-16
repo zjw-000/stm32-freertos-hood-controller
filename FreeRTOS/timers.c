@@ -583,11 +583,11 @@ BaseType_t xTimerListsWereSwitched;
 		then don't process this timer as any timers that remained in the list
 		when the lists were switched will have been processed within the
 		prvSampleTimeNow() function. */
-		xTimeNow = prvSampleTimeNow( &xTimerListsWereSwitched );//å¯¹æ—¶é’ŸèŠ‚æ‹è¿›è¡Œè®¡æ•°ï¼Œçœ‹è®¡æ•°æ˜¯å¦æº¢å‡º
+		xTimeNow = prvSampleTimeNow( &xTimerListsWereSwitched );//¶ÔÊ±ÖÓ½ÚÅÄ½øĞĞ¼ÆÊı£¬¿´¼ÆÊıÊÇ·ñÒç³ö
 		if( xTimerListsWereSwitched == pdFALSE )
 		{
 			/* The tick count has not overflowed, has the timer expired? */
-			/*å¦‚æœæ²¡æœ‰æº¢å‡ºï¼Œå°±å°†è°ƒç”¨å›è°ƒå‡½æ•°*/
+			/*Èç¹ûÃ»ÓĞÒç³ö£¬¾Í½«µ÷ÓÃ»Øµ÷º¯Êı*/
 			if( ( xListWasEmpty == pdFALSE ) && ( xNextExpireTime <= xTimeNow ) )
 			{
 				( void ) xTaskResumeAll();
@@ -601,7 +601,7 @@ BaseType_t xTimerListsWereSwitched;
 				received - whichever comes first.  The following line cannot
 				be reached unless xNextExpireTime > xTimeNow, except in the
 				case when the current timer list is empty. */
-				/*å¦‚æœåœ¨æ—¶é’ŸèŠ‚æ‹è®¡æ•°æ²¡æœ‰æº¢å‡ºçš„æ—¶å€™ï¼Œä¸‹ä¸€ä¸ªåˆ°æœŸå®šæ—¶å™¨æ—¶é—´è¿˜æ²¡åˆ°ï¼Œå°±ä¼šé˜»å¡ç­‰å¾…å‘½ä»¤æˆ–è€…æ˜¯ç­‰å¾…ä¸‹ä¸€ä¸ªåˆ°æœŸæ—¶é—´*/
+				/*Èç¹ûÔÚÊ±ÖÓ½ÚÅÄ¼ÆÊıÃ»ÓĞÒç³öµÄÊ±ºò£¬ÏÂÒ»¸öµ½ÆÚ¶¨Ê±Æ÷Ê±¼ä»¹Ã»µ½£¬¾Í»á×èÈûµÈ´ıÃüÁî»òÕßÊÇµÈ´ıÏÂÒ»¸öµ½ÆÚÊ±¼ä*/
 				if( xListWasEmpty != pdFALSE )
 				{
 					/* The current timer list is empty - is the overflow list
@@ -626,7 +626,7 @@ BaseType_t xTimerListsWereSwitched;
 			}
 		}
 		else
-		/*å¦‚æœæ—¶é’ŸèŠ‚æ‹è®¡æ•°æº¢å‡ºï¼Œä¸åšå¤„ç†*/
+		/*Èç¹ûÊ±ÖÓ½ÚÅÄ¼ÆÊıÒç³ö£¬²»×ö´¦Àí*/
 		{
 			( void ) xTaskResumeAll();
 		}

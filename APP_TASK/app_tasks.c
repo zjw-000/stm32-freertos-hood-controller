@@ -1,11 +1,11 @@
 /*
- * åº”ç”¨å±‚ä»»åŠ¡æºæ–‡ä»¶
- * åŸºäºFreeRTOSçš„æ²¹çƒŸæœºæ§åˆ¶ç³»ç»Ÿ
+ * Ó¦ÓÃ²ãÈÎÎñÔ´ÎÄ¼ş
+ * »ùÓÚFreeRTOSµÄÓÍÑÌ»ú¿ØÖÆÏµÍ³
  *
- * ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
- * é—²é±¼å·ï¼štb43915564
- * ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
- * é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ * ×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
+ * ÏĞÓãºÅ£ºtb43915564
+ * ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+ * ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
  */
 #include "app_tasks.h"
 #include "delay.h"
@@ -29,15 +29,15 @@
 
 
 /*-----------------------------------------------------------
- * å…¨å±€å˜é‡å®šä¹‰
+ * È«¾Ö±äÁ¿¶¨Òå
  *----------------------------------------------------------*/
-SystemState_t g_systemState;                /* ç³»ç»ŸçŠ¶æ€ */
-SemaphoreHandle_t g_dataMutex = NULL;       /* æ•°æ®äº’æ–¥ä¿¡å·é‡ */
-SemaphoreHandle_t g_speedCalcSemaphore = NULL;  /* é€Ÿåº¦è®¡ç®—äºŒå€¼ä¿¡å·é‡ */
-SemaphoreHandle_t g_iapSemaphore = NULL;      /* IAPä¿¡å·é‡ */
+SystemState_t g_systemState;                /* ÏµÍ³×´Ì¬ */
+SemaphoreHandle_t g_dataMutex = NULL;       /* Êı¾İ»¥³âĞÅºÅÁ¿ */
+SemaphoreHandle_t g_speedCalcSemaphore = NULL;  /* ËÙ¶È¼ÆËã¶şÖµĞÅºÅÁ¿ */
+SemaphoreHandle_t g_iapSemaphore = NULL;      /* IAPĞÅºÅÁ¿ */
 
-/* ä»»åŠ¡å¥æŸ„ */
-//ä»»åŠ¡æŒ‡é’ˆ
+/* ÈÎÎñ¾ä±ú */
+//ÈÎÎñÖ¸Õë
 static TaskHandle_t xStartTaskHandle = NULL;
 static TaskHandle_t xKeyScanTaskHandle = NULL;
 static TaskHandle_t xSensorTaskHandle = NULL;
@@ -52,33 +52,33 @@ static TaskHandle_t xSpeedCalcTaskHandle = NULL;
 #endif
 
 
-/* PIDæ§åˆ¶å™¨ */
+/* PID¿ØÖÆÆ÷ */
 extern PID_TypeDef g_speedPID;
 
 
-/* è‡ªåŠ¨æ¨¡å¼çŠ¶æ€æœºçŠ¶æ€ */
+/* ×Ô¶¯Ä£Ê½×´Ì¬»ú×´Ì¬ */
 typedef enum {
-    AUTO_STATE_STARTUP,             /* å¯åŠ¨é˜¶æ®µï¼ˆç­‰å¾…cooking eventï¼‰ */
-    AUTO_STATE_COOKING,             /* Cooking Eventæ¿€æ´» */
-    AUTO_STATE_DELAY_OFF            /* å»¶æ—¶å…³é—­é˜¶æ®µ */
+    AUTO_STATE_STARTUP,             /* Æô¶¯½×¶Î£¨µÈ´ıcooking event£© */
+    AUTO_STATE_COOKING,             /* Cooking Event¼¤»î */
+    AUTO_STATE_DELAY_OFF            /* ÑÓÊ±¹Ø±Õ½×¶Î */
 } AutoModeState_t;
 
 static AutoModeState_t g_autoModeState = AUTO_STATE_STARTUP;
 
-#if ifopen  /*å›ºä»¶å‡çº§åŠŸèƒ½ï¼Œå³é”®ç‚¹å‡»è¯¥å®--goto definition--å°†0æ”¹æˆ1å³å¯ä½¿ç”¨*/   
+#if ifopen  /*¹Ì¼şÉı¼¶¹¦ÄÜ£¬ÓÒ¼üµã»÷¸Ãºê--goto definition--½«0¸Ä³É1¼´¿ÉÊ¹ÓÃ*/   
 /*****************************************************************************************************************************************************/
-/**å®šä¹‰APPç¨‹åºç¼“å†²åŒºå¤§å°*/
-/**è‹¥ä½¿èƒ½ä¸º1ï¼Œæ­¤æ—¶ç‚¹å‡»MAPæ–‡ä»¶ä¼šå‘ç°RAMå¤§å°ä¸º19.56KBï¼Œè¿™æ˜¯å› ä¸ºbootåç§»äº†16Kï¼Œå†åŠ ä¸ŠAPPçš„3.56Kï¼Œå› æ­¤è¿™é‡Œçš„RAMæ˜¯bootåŠ APPçš„åˆè®¡***/
-/*éœ€è¦æ³¨æ„ä¸èƒ½è®©bootloaderç¨‹åºçš„RAMåŒºåŸŸä¸APPç¨‹åºçš„RAMåŒºåŸŸé‡å ï¼Œè€Œç¬”è€…bootloaderçš„RAMå¤§æ¦‚ä¸º13K(å¿½ç•¥æ‰buff_sizeç¼–è¯‘æ‰€å¾—çš„ramå¤§å°å°±æ˜¯bootåŒºçš„ramå¤§å°)ï¼Œ
-*å› æ­¤åç§»äº†16Kï¼Œä¸º0x4000,å‰©ä¸‹çš„4Kramç»™APP*/
+/**¶¨ÒåAPP³ÌĞò»º³åÇø´óĞ¡*/
+/**ÈôÊ¹ÄÜÎª1£¬´ËÊ±µã»÷MAPÎÄ¼ş»á·¢ÏÖRAM´óĞ¡Îª19.56KB£¬ÕâÊÇÒòÎªbootÆ«ÒÆÁË16K£¬ÔÙ¼ÓÉÏAPPµÄ3.56K£¬Òò´ËÕâÀïµÄRAMÊÇboot¼ÓAPPµÄºÏ¼Æ***/
+/*ĞèÒª×¢Òâ²»ÄÜÈÃbootloader³ÌĞòµÄRAMÇøÓòÓëAPP³ÌĞòµÄRAMÇøÓòÖØµş£¬¶ø±ÊÕßbootloaderµÄRAM´ó¸ÅÎª13K(ºöÂÔµôbuff_size±àÒëËùµÃµÄram´óĞ¡¾ÍÊÇbootÇøµÄram´óĞ¡)£¬
+*Òò´ËÆ«ÒÆÁË16K£¬Îª0x4000,Ê£ÏÂµÄ4Kram¸øAPP*/
 /******************************************************************************************************************************************************/
 
-u8 receive_buff[buff_size]  __attribute__ ((at(0X20004000)));/*å°†æ•°ç»„åˆ†é…åˆ°å›ºå®šçš„å†…å­˜åœ°å€ï¼ˆè¯·æ ¹æ®éœ€è¦ä¿®æ”¹ï¼‰,å¦åˆ™ä¼šåˆ¤æ–­å›ºä»¶ç¨‹åºå¤±è´¥*/
+u8 receive_buff[buff_size]  __attribute__ ((at(0X20004000)));/*½«Êı×é·ÖÅäµ½¹Ì¶¨µÄÄÚ´æµØÖ·£¨Çë¸ù¾İĞèÒªĞŞ¸Ä£©,·ñÔò»áÅĞ¶Ï¹Ì¼ş³ÌĞòÊ§°Ü*/
 	
 #endif
 
 /*-----------------------------------------------------------
- * æ¨¡å¼åç§°å­—ç¬¦ä¸²
+ * Ä£Ê½Ãû³Æ×Ö·û´®
  *----------------------------------------------------------*/
 static const char* ModeNames[] = {
     "Standby",
@@ -99,57 +99,57 @@ static const char* AutoStateNames[] = {
 };
 
 /*-----------------------------------------------------------
- * ç³»ç»Ÿåˆå§‹åŒ–
+ * ÏµÍ³³õÊ¼»¯
  *----------------------------------------------------------*/
 void System_Init(void)
 {
-    /* åˆå§‹åŒ–ç³»ç»ŸçŠ¶æ€ */
-    //ç³»ç»Ÿæ¨¡å¼æ ‡å¿—ï¼šé»˜è®¤è®¾ç½®å¾…æœºæ¨¡å¼
+    /* ³õÊ¼»¯ÏµÍ³×´Ì¬ */
+    //ÏµÍ³Ä£Ê½±êÖ¾£ºÄ¬ÈÏÉèÖÃ´ı»úÄ£Ê½
     g_systemState.currentMode = MODE_STANDBY;
 
 
-    //é€Ÿåº¦æ¡£ä½æ ‡å¿—ï¼šé«˜æ¡£ä½SPEED_HIGHã€ä½æ¡£ä½SPEED_LOW = 0
+    //ËÙ¶ÈµµÎ»±êÖ¾£º¸ßµµÎ»SPEED_HIGH¡¢µÍµµÎ»SPEED_LOW = 0
     g_systemState.speedLevel = SPEED_LOW;
-    //ç”µæœºè¿è¡Œæ ‡å¿—ä½ï¼šè¿è¡Œ1ã€åœæ­¢0
+    //µç»úÔËĞĞ±êÖ¾Î»£ºÔËĞĞ1¡¢Í£Ö¹0
     g_systemState.motorRunning = 0;
-    //ç”µæœºé£é€ŸPWMå ç©ºæ¯”æ ‡å¿—ï¼š0% - 100%
+    //µç»ú·çËÙPWMÕ¼¿Õ±È±êÖ¾£º0% - 100%
     g_systemState.windSpeedPWM = 0.0f;
-    //è®°å½•ç¼–ç å™¨è¾“å‡ºå®é™…è½¬é€Ÿæ ‡å¿—ï¼š0
+    //¼ÇÂ¼±àÂëÆ÷Êä³öÊµ¼Ê×ªËÙ±êÖ¾£º0
     g_systemState.actualRPM = 0.0f;
-    //è®¾å®šç›®æ ‡ç”µæœºè½¬é€Ÿï¼š0
+    //Éè¶¨Ä¿±êµç»ú×ªËÙ£º0
     g_systemState.targetRPM = 0;
 
 
-    //æ¸©åº¦æ ‡å¿—ï¼š0â„ƒ
+    //ÎÂ¶È±êÖ¾£º0¡æ
     g_systemState.temperature = 0;
-    //ç›¸å¯¹æ¹¿åº¦æ ‡å¿—ï¼š0%
+    //Ïà¶ÔÊª¶È±êÖ¾£º0%
     g_systemState.humidity = 0;
-    //æ°”ä½“æµ“åº¦æ ‡å¿—ï¼š0
+    //ÆøÌåÅ¨¶È±êÖ¾£º0
     g_systemState.gasConcentration = 0.0f;
     
 
-    //è‡ªåŠ¨æ¨¡å¼ï¼šè®¡æ—¶å™¨å’ŒCooking Eventè®¡æ—¶å™¨ä¸º0
+    //×Ô¶¯Ä£Ê½£º¼ÆÊ±Æ÷ºÍCooking Event¼ÆÊ±Æ÷Îª0
     g_systemState.autoModeCounter = 0;
     g_systemState.cookingEventCounter = 0;
-    //Cooking Eventæ ‡å¿—ï¼šæ£€æµ‹åˆ°1ã€æœªæ£€æµ‹åˆ°0
+    //Cooking Event±êÖ¾£º¼ì²âµ½1¡¢Î´¼ì²âµ½0
     g_systemState.cookingEventActive = 0;
     
 
-    //é˜²å›æµæ¨¡å¼æ ‡å¿—ä½ï¼šæ¿€æ´»1ã€æœªæ¿€æ´»0
+    //·À»ØÁ÷Ä£Ê½±êÖ¾Î»£º¼¤»î1¡¢Î´¼¤»î0
     g_systemState.antiBackflowActive = 0;
-    //é˜²å›æµç¯å¢ƒï¼šæ°”ä½“æµ“åº¦é˜ˆå€¼ä¸ºæ­£å¸¸é˜ˆå€¼GAS_THRESHOLD_NORMAL = 100 
+    //·À»ØÁ÷»·¾³£ºÆøÌåÅ¨¶ÈãĞÖµÎªÕı³£ãĞÖµGAS_THRESHOLD_NORMAL = 100 
     g_systemState.gasThreshold = GAS_THRESHOLD_NORMAL;
     
      
-    /* åˆ›å»ºäº’æ–¥ä¿¡å·é‡ */
-    //ä¿æŠ¤g_systemStateæ•°æ®ç»“æ„ä½“çš„è®¿é—®ï¼Œé¿å…å¤šä»»åŠ¡åŒæ—¶è®¿é—®å¯¼è‡´æ•°æ®ä¸ä¸€è‡´
+    /* ´´½¨»¥³âĞÅºÅÁ¿ */
+    //±£»¤g_systemStateÊı¾İ½á¹¹ÌåµÄ·ÃÎÊ£¬±ÜÃâ¶àÈÎÎñÍ¬Ê±·ÃÎÊµ¼ÖÂÊı¾İ²»Ò»ÖÂ
     g_dataMutex = xSemaphoreCreateMutex();
     
-    /* åˆ›å»ºé€Ÿåº¦è®¡ç®—äºŒå€¼ä¿¡å·é‡ */
-    //TIM4ä¸­æ–­é€šçŸ¥SpeedCalcTaskä»»åŠ¡
+    /* ´´½¨ËÙ¶È¼ÆËã¶şÖµĞÅºÅÁ¿ */
+    //TIM4ÖĞ¶ÏÍ¨ÖªSpeedCalcTaskÈÎÎñ
     g_speedCalcSemaphore = xSemaphoreCreateBinary();
 
-    // åˆ›å»ºIAPä¿¡å·é‡
+    // ´´½¨IAPĞÅºÅÁ¿
 #if ifopen
     g_iapSemaphore = xSemaphoreCreateBinary();
 #endif
@@ -157,7 +157,7 @@ void System_Init(void)
 }
 
 /*-----------------------------------------------------------
- * åˆ›å»ºå¼€å§‹ä»»åŠ¡
+ * ´´½¨¿ªÊ¼ÈÎÎñ
  *----------------------------------------------------------*/
 void StartTask_Create(void)
 {
@@ -166,67 +166,67 @@ void StartTask_Create(void)
 }
 
 /*-----------------------------------------------------------
- * å¼€å§‹ä»»åŠ¡ - åˆ›å»ºå…¶ä»–ä»»åŠ¡
+ * ¿ªÊ¼ÈÎÎñ - ´´½¨ÆäËûÈÎÎñ
  *----------------------------------------------------------*/
 void StartTask(void *pvParameters)
 {
-    taskENTER_CRITICAL();   /* è¿›å…¥ä¸´ç•ŒåŒº */
+    taskENTER_CRITICAL();   /* ½øÈëÁÙ½çÇø */
     
-    /* åˆ›å»ºæŒ‰é”®æ‰«æä»»åŠ¡ */
-    // ä¼˜å…ˆçº§æ˜¯4ï¼Œæ ˆç©ºé—´æ˜¯64å­—èŠ‚ï¼Œè°ƒç”¨KeyScanTaskå‡½æ•°ï¼Œä»»åŠ¡å¥æŸ„æ˜¯xKeyScanTaskHandle
+    /* ´´½¨°´¼üÉ¨ÃèÈÎÎñ */
+    // ÓÅÏÈ¼¶ÊÇ4£¬Õ»¿Õ¼äÊÇ64×Ö½Ú£¬µ÷ÓÃKeyScanTaskº¯Êı£¬ÈÎÎñ¾ä±úÊÇxKeyScanTaskHandle
     xTaskCreate(KeyScanTask, "KeyScan", TASK_KEY_STK_SIZE, NULL,
                 TASK_KEY_PRIORITY, &xKeyScanTaskHandle);
     
-    /* åˆ›å»ºä¼ æ„Ÿå™¨é‡‡é›†ä»»åŠ¡ */
-    // ä¼˜å…ˆçº§æ˜¯3ï¼Œæ ˆç©ºé—´æ˜¯128å­—èŠ‚ï¼Œè°ƒç”¨SensorTaskå‡½æ•°ï¼Œä»»åŠ¡å¥æŸ„æ˜¯xSensorTaskHandle
+    /* ´´½¨´«¸ĞÆ÷²É¼¯ÈÎÎñ */
+    // ÓÅÏÈ¼¶ÊÇ3£¬Õ»¿Õ¼äÊÇ128×Ö½Ú£¬µ÷ÓÃSensorTaskº¯Êı£¬ÈÎÎñ¾ä±úÊÇxSensorTaskHandle
     xTaskCreate(SensorTask, "Sensor", TASK_SENSOR_STK_SIZE, NULL,
                 TASK_SENSOR_PRIORITY, &xSensorTaskHandle);
     
-    /* åˆ›å»ºé£é€Ÿè®¡ç®—ä»»åŠ¡ */
-    // ä¼˜å…ˆçº§æ˜¯3ï¼Œæ ˆç©ºé—´æ˜¯64å­—èŠ‚ï¼Œè°ƒç”¨WindSpeedTaskå‡½æ•°ï¼Œä»»åŠ¡å¥æŸ„æ˜¯xWindSpeedTaskHandle
+    /* ´´½¨·çËÙ¼ÆËãÈÎÎñ */
+    // ÓÅÏÈ¼¶ÊÇ3£¬Õ»¿Õ¼äÊÇ64×Ö½Ú£¬µ÷ÓÃWindSpeedTaskº¯Êı£¬ÈÎÎñ¾ä±úÊÇxWindSpeedTaskHandle
     xTaskCreate(WindSpeedTask, "WindSpeed", TASK_WIND_SPEED_STK_SIZE, NULL,
                 TASK_WIND_SPEED_PRIORITY, &xWindSpeedTaskHandle);
     
-    /* åˆ›å»ºç”µæœºæ§åˆ¶ä»»åŠ¡ */
-    // ä¼˜å…ˆçº§æ˜¯5ï¼Œæ ˆç©ºé—´æ˜¯256å­—èŠ‚ï¼Œè°ƒç”¨MotorControlTaskå‡½æ•°ï¼Œä»»åŠ¡å¥æŸ„æ˜¯xMotorControlTaskHandle
+    /* ´´½¨µç»ú¿ØÖÆÈÎÎñ */
+    // ÓÅÏÈ¼¶ÊÇ5£¬Õ»¿Õ¼äÊÇ256×Ö½Ú£¬µ÷ÓÃMotorControlTaskº¯Êı£¬ÈÎÎñ¾ä±úÊÇxMotorControlTaskHandle
     xTaskCreate(MotorControlTask, "Motor", TASK_MOTOR_STK_SIZE, NULL,
                 TASK_MOTOR_PRIORITY, &xMotorControlTaskHandle);
     
-    /* åˆ›å»ºUIæ˜¾ç¤ºä»»åŠ¡ */
-    // ä¼˜å…ˆçº§æ˜¯1ï¼Œæ ˆç©ºé—´æ˜¯256å­—èŠ‚ï¼Œè°ƒç”¨UIDisplayTaskå‡½æ•°ï¼Œä»»åŠ¡å¥æŸ„æ˜¯xUIDisplayTaskHandle
+    /* ´´½¨UIÏÔÊ¾ÈÎÎñ */
+    // ÓÅÏÈ¼¶ÊÇ1£¬Õ»¿Õ¼äÊÇ256×Ö½Ú£¬µ÷ÓÃUIDisplayTaskº¯Êı£¬ÈÎÎñ¾ä±úÊÇxUIDisplayTaskHandle
     xTaskCreate(UIDisplayTask, "UI", TASK_UI_STK_SIZE, NULL,
                 TASK_UI_PRIORITY, &xUIDisplayTaskHandle);
     
-    /* åˆ›å»ºé˜²å›æµä»»åŠ¡ */
-    // ä¼˜å…ˆçº§æ˜¯2ï¼Œæ ˆç©ºé—´æ˜¯64å­—èŠ‚ï¼Œè°ƒç”¨AntiBackflowTaskå‡½æ•°ï¼Œä»»åŠ¡å¥æŸ„æ˜¯xAntiBackflowTaskHandle
+    /* ´´½¨·À»ØÁ÷ÈÎÎñ */
+    // ÓÅÏÈ¼¶ÊÇ2£¬Õ»¿Õ¼äÊÇ64×Ö½Ú£¬µ÷ÓÃAntiBackflowTaskº¯Êı£¬ÈÎÎñ¾ä±úÊÇxAntiBackflowTaskHandle
     xTaskCreate(AntiBackflowTask, "AntiBF", TASK_ANTI_BACKFLOW_STK_SIZE, NULL,
                 TASK_ANTI_BACKFLOW_PRIORITY, &xAntiBackflowTaskHandle);
     
-    /* åˆ›å»ºé€Ÿåº¦è®¡ç®—ä»»åŠ¡ */
-    // ä¼˜å…ˆçº§æ˜¯6ï¼Œæ ˆç©ºé—´æ˜¯128å­—èŠ‚ï¼Œè°ƒç”¨SpeedCalcTaskå‡½æ•°ï¼Œä»»åŠ¡å¥æŸ„æ˜¯xSpeedCalcTaskHandle
+    /* ´´½¨ËÙ¶È¼ÆËãÈÎÎñ */
+    // ÓÅÏÈ¼¶ÊÇ6£¬Õ»¿Õ¼äÊÇ128×Ö½Ú£¬µ÷ÓÃSpeedCalcTaskº¯Êı£¬ÈÎÎñ¾ä±úÊÇxSpeedCalcTaskHandle
     xTaskCreate(SpeedCalcTask, "SpeedCalc", TASK_SPEED_CALC_STK_SIZE, NULL,
                 TASK_SPEED_CALC_PRIORITY, &xSpeedCalcTaskHandle);
 #if ifopen  
-    /* åˆ›å»ºIAPä»»åŠ¡ */
-    // ä¼˜å…ˆçº§æ˜¯7ï¼Œæ ˆç©ºé—´æ˜¯256å­—èŠ‚ï¼Œè°ƒç”¨iap_taskå‡½æ•°ï¼Œä»»åŠ¡å¥æŸ„æ˜¯xIAPTaskHandle
+    /* ´´½¨IAPÈÎÎñ */
+    // ÓÅÏÈ¼¶ÊÇ7£¬Õ»¿Õ¼äÊÇ256×Ö½Ú£¬µ÷ÓÃiap_taskº¯Êı£¬ÈÎÎñ¾ä±úÊÇxIAPTaskHandle
     xTaskCreate(iap_task, "IAP", TASK_IAP_STK_SIZE, NULL,
                 TASK_IAP_PRIORITY, &xIAPTaskHandle);
 #endif                
     
-    /* åˆå§‹åŒ–TIM4å®šæ—¶å™¨ï¼ˆå¿…é¡»åœ¨ä¿¡å·é‡åˆ›å»ºåè°ƒç”¨ï¼Œé¿å…HardFaultï¼‰
-     * å‚æ•°ï¼š5-1=4, 14400-1=14399
-     * å®šæ—¶å™¨é¢‘ç‡ = 72MHz / 14400 = 5kHz
-     * ä¸­æ–­å‘¨æœŸ = 5 / 5kHz = 1ms */
+    /* ³õÊ¼»¯TIM4¶¨Ê±Æ÷£¨±ØĞëÔÚĞÅºÅÁ¿´´½¨ºóµ÷ÓÃ£¬±ÜÃâHardFault£©
+     * ²ÎÊı£º5-1=4, 14400-1=14399
+     * ¶¨Ê±Æ÷ÆµÂÊ = 72MHz / 14400 = 5kHz
+     * ÖĞ¶ÏÖÜÆÚ = 5 / 5kHz = 1ms */
     TIM4_init(5-1, 14400-1);
     
-    taskEXIT_CRITICAL();    /* é€€å‡ºä¸´ç•ŒåŒº */
+    taskEXIT_CRITICAL();    /* ÍË³öÁÙ½çÇø */
     
-    /* åˆ é™¤å¼€å§‹ä»»åŠ¡ */
+    /* É¾³ı¿ªÊ¼ÈÎÎñ */
     vTaskDelete(xStartTaskHandle);
 }
 
 /*-----------------------------------------------------------
- * æŒ‰é”®æ‰«æä»»åŠ¡ - å‘¨æœŸ10ms, ä¼˜å…ˆçº§ä¸º4
+ * °´¼üÉ¨ÃèÈÎÎñ - ÖÜÆÚ10ms, ÓÅÏÈ¼¶Îª4
  *----------------------------------------------------------*/
 void KeyScanTask(void *pvParameters)
 {
@@ -234,109 +234,109 @@ void KeyScanTask(void *pvParameters)
     
     while (1)
     {
-        /* æ‰«ææŒ‰é”® */
+        /* É¨Ãè°´¼ü */
         Key_Scan();
         
-        /* è·å–æŒ‰é”®1äº‹ä»¶ï¼ˆæ¨¡å¼åˆ‡æ¢ï¼‰ */
-        // å¾…æœºæ¨¡å¼ï¼š
-        //      çŸ­æŒ‰-åˆ‡æ¢åˆ°æ‰‹åŠ¨æ¨¡å¼
-        //      æœªå®ç°æŒ‰é”®1é•¿æŒ‰åŠŸèƒ½
-        // æ‰‹åŠ¨æ¨¡å¼ï¼š
-        //      çŸ­æŒ‰-åˆ‡æ¢åˆ°è‡ªåŠ¨æ¨¡å¼
-        //      æœªå®ç°æŒ‰é”®1é•¿æŒ‰åŠŸèƒ½
-        // è‡ªåŠ¨æ¨¡å¼ï¼š
-        //      çŸ­æŒ‰-åˆ‡æ¢åˆ°é˜²å›æµæ¨¡å¼
-        //      æœªå®ç°æŒ‰é”®1é•¿æŒ‰åŠŸèƒ½
-        // é˜²å›æµæ¨¡å¼ï¼š
-        //      çŸ­æŒ‰-åˆ‡æ¢åˆ°å¾…æœºæ¨¡å¼
-        //      æœªå®ç°æŒ‰é”®1é•¿æŒ‰åŠŸèƒ½
+        /* »ñÈ¡°´¼ü1ÊÂ¼ş£¨Ä£Ê½ÇĞ»»£© */
+        // ´ı»úÄ£Ê½£º
+        //      ¶Ì°´-ÇĞ»»µ½ÊÖ¶¯Ä£Ê½
+        //      Î´ÊµÏÖ°´¼ü1³¤°´¹¦ÄÜ
+        // ÊÖ¶¯Ä£Ê½£º
+        //      ¶Ì°´-ÇĞ»»µ½×Ô¶¯Ä£Ê½
+        //      Î´ÊµÏÖ°´¼ü1³¤°´¹¦ÄÜ
+        // ×Ô¶¯Ä£Ê½£º
+        //      ¶Ì°´-ÇĞ»»µ½·À»ØÁ÷Ä£Ê½
+        //      Î´ÊµÏÖ°´¼ü1³¤°´¹¦ÄÜ
+        // ·À»ØÁ÷Ä£Ê½£º
+        //      ¶Ì°´-ÇĞ»»µ½´ı»úÄ£Ê½
+        //      Î´ÊµÏÖ°´¼ü1³¤°´¹¦ÄÜ
         key1Event = Key1_GetEvent();
         if (key1Event == KEY_EVENT_SHORT_PRESS)
         {
             System_SwitchMode();
-            Buzzer_Beep(100,&bep);           /* çŸ­æŒ‰æç¤ºéŸ³ */
+            Buzzer_Beep(100,&bep);           /* ¶Ì°´ÌáÊ¾Òô */
             Key1_ClearEvent();
         }
         else if (key1Event == KEY_EVENT_LONG_PRESS)
         {
-            /* åº”è¯¥æ‰§è¡ŒæŸä¸ªé•¿æŒ‰æ¨¡å¼åŠŸèƒ½ */
+            /* Ó¦¸ÃÖ´ĞĞÄ³¸ö³¤°´Ä£Ê½¹¦ÄÜ */
         }
         else if (key1Event == KEY_EVENT_LONG_PRESSING)
         {
-            Beep_on(&bep);                /* é•¿æŒ‰æŒç»­é¸£å« */
+            Beep_on(&bep);                /* ³¤°´³ÖĞøÃù½Ğ */
         }
         else if (key1Event == KEY_EVENT_RELEASE)
         {
-            Beep_off(&bep);               /* é‡Šæ”¾æ—¶åœæ­¢é¸£å« */
+            Beep_off(&bep);               /* ÊÍ·ÅÊ±Í£Ö¹Ãù½Ğ */
             Key1_ClearEvent();
         }
         
-        /* è·å–æŒ‰é”®2äº‹ä»¶ï¼ˆæ¡£ä½åˆ‡æ¢/é£æœºå¼€å…³ï¼‰ */
-        // å¾…æœºæ¨¡å¼ï¼š
-        //      çŸ­æŒ‰-æ¡£ä½è¢«è®°ä¸‹æ¥ï¼Œä½†ç”µæœºä»ç„¶åœæ­¢
-        //      é•¿æŒ‰-ç”µæœºå¼€å…³è¢«è®°ä¸‹æ¥ï¼Œä½†ç”µæœºä»ç„¶åœæ­¢
-        // æ‰‹åŠ¨æ¨¡å¼ï¼š
-        //      çŸ­æŒ‰-æ¡£ä½æ”¹å˜ï¼Œç›®æ ‡è½¬é€Ÿæ”¹å˜ï¼ŒPIDéšåè°ƒèŠ‚ç”µæœº
-        //      é•¿æŒ‰-åˆ‡æ¢ç”µæœºå¼€æˆ–å…³
-        // è‡ªåŠ¨æ¨¡å¼ï¼š
-        //      çŸ­æŒ‰-æ¡£ä½è¢«è®°ä¸‹æ¥ï¼Œä½†è‡ªåŠ¨ç®—æ³•ä»æ ¹æ®ç¯å¢ƒè®¡ç®—PWMï¼Œé€šå¸¸ä¸ä¼šç«‹å³ä½¿ç”¨è¯¥æ¡£ä½
-        //      é•¿æŒ‰-åˆ‡æ¢ç”µæœºå¼€æˆ–å…³
-        // é˜²å›æµæ¨¡å¼ï¼š
-        //      çŸ­æŒ‰-é˜²å›æµå·²æ¿€æ´»ä¸”ç”µæœºè¿è¡Œæ—¶ï¼Œä¼šä½¿ç”¨æ–°æ¡£ä½æ§åˆ¶ç›®æ ‡è½¬é€Ÿ
-        //      é•¿æŒ‰-åˆ‡æ¢ç”µæœºå¼€æˆ–å…³
+        /* »ñÈ¡°´¼ü2ÊÂ¼ş£¨µµÎ»ÇĞ»»/·ç»ú¿ª¹Ø£© */
+        // ´ı»úÄ£Ê½£º
+        //      ¶Ì°´-µµÎ»±»¼ÇÏÂÀ´£¬µ«µç»úÈÔÈ»Í£Ö¹
+        //      ³¤°´-µç»ú¿ª¹Ø±»¼ÇÏÂÀ´£¬µ«µç»úÈÔÈ»Í£Ö¹
+        // ÊÖ¶¯Ä£Ê½£º
+        //      ¶Ì°´-µµÎ»¸Ä±ä£¬Ä¿±ê×ªËÙ¸Ä±ä£¬PIDËæºóµ÷½Úµç»ú
+        //      ³¤°´-ÇĞ»»µç»ú¿ª»ò¹Ø
+        // ×Ô¶¯Ä£Ê½£º
+        //      ¶Ì°´-µµÎ»±»¼ÇÏÂÀ´£¬µ«×Ô¶¯Ëã·¨ÈÔ¸ù¾İ»·¾³¼ÆËãPWM£¬Í¨³£²»»áÁ¢¼´Ê¹ÓÃ¸ÃµµÎ»
+        //      ³¤°´-ÇĞ»»µç»ú¿ª»ò¹Ø
+        // ·À»ØÁ÷Ä£Ê½£º
+        //      ¶Ì°´-·À»ØÁ÷ÒÑ¼¤»îÇÒµç»úÔËĞĞÊ±£¬»áÊ¹ÓÃĞÂµµÎ»¿ØÖÆÄ¿±ê×ªËÙ
+        //      ³¤°´-ÇĞ»»µç»ú¿ª»ò¹Ø
 
         key2Event = Key2_GetEvent();
         if (key2Event == KEY_EVENT_SHORT_PRESS)
         {
             System_SwitchSpeedLevel();
-            Buzzer_Beep(100,&bep);           /* çŸ­æŒ‰æç¤ºéŸ³ */
+            Buzzer_Beep(100,&bep);           /* ¶Ì°´ÌáÊ¾Òô */
             Key2_ClearEvent();
         }
         else if (key2Event == KEY_EVENT_LONG_PRESS)
         {
-            System_ToggleMotor();         /*é•¿æŒ‰æ—¶å…³é—­æˆ–è€…æ‰“å¼€ç”µæœºï¼Œæ— è®ºç”µæœºåœ¨ä½•ç§æ¨¡å¼ä¸‹*/
+            System_ToggleMotor();         /*³¤°´Ê±¹Ø±Õ»òÕß´ò¿ªµç»ú£¬ÎŞÂÛµç»úÔÚºÎÖÖÄ£Ê½ÏÂ*/
             
         }
         else if (key2Event == KEY_EVENT_LONG_PRESSING)
         {
-            Beep_on(&bep);                /* é•¿æŒ‰æŒç»­é¸£å« */
+            Beep_on(&bep);                /* ³¤°´³ÖĞøÃù½Ğ */
         }
         else if (key2Event == KEY_EVENT_RELEASE)
         {
-            Beep_off(&bep);               /* é‡Šæ”¾æ—¶åœæ­¢é¸£å« */
+            Beep_off(&bep);               /* ÊÍ·ÅÊ±Í£Ö¹Ãù½Ğ */
             Key2_ClearEvent();
         }
         
-        delay_ms(10);   				 /* 10msæ‰«æå‘¨æœŸ */
+        delay_ms(10);   				 /* 10msÉ¨ÃèÖÜÆÚ */
     }
 }
 
 /*-----------------------------------------------------------
- * ä¼ æ„Ÿå™¨é‡‡é›†ä»»åŠ¡ - å‘¨æœŸ500msï¼Œ ä¼˜å…ˆçº§ä¸º3
+ * ´«¸ĞÆ÷²É¼¯ÈÎÎñ - ÖÜÆÚ500ms£¬ ÓÅÏÈ¼¶Îª3
  *----------------------------------------------------------*/
 void SensorTask(void *pvParameters)
 {
-    // æ¸©åº¦ã€æ¹¿åº¦å€¼
+    // ÎÂ¶È¡¢Êª¶ÈÖµ
     u8 temp,humi;
-    // æ°”ä½“æµ“åº¦å€¼
+    // ÆøÌåÅ¨¶ÈÖµ
     float gasValue;
     u8 ret;
 
     while (1)
     {
-        /* è¯»å–DHT11æ•°æ® */
+        /* ¶ÁÈ¡DHT11Êı¾İ */
         ret = DHT_Read_Data(&temp,&humi,GPIOC, GPIO_Pin_14, &dht);
-        if (ret == 1)/*å¦‚æœæ ¡éªŒæˆåŠŸ*/
+        if (ret == 1)/*Èç¹ûĞ£Ñé³É¹¦*/
         {
-            /*å¦‚æœæ­¤å¤„è·å–2ä¸ªä¼ æ„Ÿå™¨æ•°æ®ä½¿ç”¨åŒä¸€æŠŠé”ï¼Œä¼šå¯¼è‡´å ç”¨èµ„æºæ—¶é—´è¿‡é•¿ï¼Œ
-            æ›´å®¹æ˜“å¸¦æ¥ä¼˜å…ˆçº§åè½¬é—®é¢˜ï¼›å› æ­¤æ­¤å¤„é‡‡ç”¨ä¸¤æŠŠé”*/
+            /*Èç¹û´Ë´¦»ñÈ¡2¸ö´«¸ĞÆ÷Êı¾İÊ¹ÓÃÍ¬Ò»°ÑËø£¬»áµ¼ÖÂÕ¼ÓÃ×ÊÔ´Ê±¼ä¹ı³¤£¬
+            ¸üÈİÒ×´øÀ´ÓÅÏÈ¼¶·´×ªÎÊÌâ£»Òò´Ë´Ë´¦²ÉÓÃÁ½°ÑËø*/
             if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
             {
                 g_systemState.temperature = temp;
                 g_systemState.humidity = humi;
                 xSemaphoreGive(g_dataMutex);
             }
-        /* è¯»å–MQ2æ•°æ® */
+        /* ¶ÁÈ¡MQ2Êı¾İ */
             gasValue = MQ2_GetGasConcentration();
             if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
             {
@@ -344,26 +344,26 @@ void SensorTask(void *pvParameters)
                 xSemaphoreGive(g_dataMutex);
             }
         }
-#if SENSOR_DEBUG    /*ä¼ æ„Ÿå™¨æ•°æ®è°ƒè¯•ï¼Œå³é”®ç‚¹å‡»è¯¥å®--goto definition--å°†0æ”¹æˆ1å³å¯ä½¿ç”¨*/        
+#if SENSOR_DEBUG    /*´«¸ĞÆ÷Êı¾İµ÷ÊÔ£¬ÓÒ¼üµã»÷¸Ãºê--goto definition--½«0¸Ä³É1¼´¿ÉÊ¹ÓÃ*/        
         printf("Temp: %d, Humi: %d, Gas: %.2f\r\n", temp, humi, gasValue);
 #endif
-        delay_ms(500);  /* 500msé‡‡é›†å‘¨æœŸ */
+        delay_ms(500);  /* 500ms²É¼¯ÖÜÆÚ */
     }
 }
 
 /*-----------------------------------------------------------
- * é£é€Ÿç®—æ³•è®¡ç®—ä»»åŠ¡ - å‘¨æœŸ100msï¼Œä¼˜å…ˆçº§ä¸º3
+ * ·çËÙËã·¨¼ÆËãÈÎÎñ - ÖÜÆÚ100ms£¬ÓÅÏÈ¼¶Îª3
  *----------------------------------------------------------*/
 void WindSpeedTask(void *pvParameters)
 {
-    // æ¸©åº¦ã€æ¹¿åº¦ã€æ°”ä½“æµ“åº¦å€¼
+    // ÎÂ¶È¡¢Êª¶È¡¢ÆøÌåÅ¨¶ÈÖµ
     u8 temp, humidity;
     float gas;
     
-    /*å¦‚æœæ­¤å¤„è·å–ä¼ æ„Ÿå™¨å’Œæ›´æ–°ç³»ç»ŸçŠ¶æ€ä½¿ç”¨åŒä¸€æŠŠé”ï¼Œä¼šå¯¼è‡´å ç”¨èµ„æºæ—¶é—´è¿‡é•¿ï¼Œæ›´å®¹æ˜“å¸¦æ¥ä¼˜å…ˆçº§åè½¬é—®é¢˜*/
+    /*Èç¹û´Ë´¦»ñÈ¡´«¸ĞÆ÷ºÍ¸üĞÂÏµÍ³×´Ì¬Ê¹ÓÃÍ¬Ò»°ÑËø£¬»áµ¼ÖÂÕ¼ÓÃ×ÊÔ´Ê±¼ä¹ı³¤£¬¸üÈİÒ×´øÀ´ÓÅÏÈ¼¶·´×ªÎÊÌâ*/
     while (1)
     {
-        /* è·å–ä¼ æ„Ÿå™¨æ•°æ® */
+        /* »ñÈ¡´«¸ĞÆ÷Êı¾İ */
         if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
         {
             temp = g_systemState.temperature;
@@ -372,12 +372,12 @@ void WindSpeedTask(void *pvParameters)
             xSemaphoreGive(g_dataMutex);
         }
         
-        /* æ›´æ–°é£é€Ÿè®¡ç®— */
-        // é£é€Ÿç®—æ³•
+        /* ¸üĞÂ·çËÙ¼ÆËã */
+        // ·çËÙËã·¨
         WindSpeed_Update(temp, humidity, gas);
         
-        /* æ›´æ–°ç³»ç»ŸçŠ¶æ€ */
-        // æ›´æ–°ç”µæœºé€Ÿåº¦PWMå€¼å’ŒCooking EventçŠ¶æ€
+        /* ¸üĞÂÏµÍ³×´Ì¬ */
+        // ¸üĞÂµç»úËÙ¶ÈPWMÖµºÍCooking Event×´Ì¬
         if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
         {
             g_systemState.windSpeedPWM = WindSpeed_GetPWM();
@@ -385,25 +385,25 @@ void WindSpeedTask(void *pvParameters)
             xSemaphoreGive(g_dataMutex);
         }
         
-        delay_ms(100);  /* 100msè®¡ç®—å‘¨æœŸ */
+        delay_ms(100);  /* 100ms¼ÆËãÖÜÆÚ */
     }
 }
 
 /*-----------------------------------------------------------
- * ç”µæœºæ§åˆ¶ä»»åŠ¡ - å‘¨æœŸ50msï¼Œä¼˜å…ˆçº§ä¸º5
+ * µç»ú¿ØÖÆÈÎÎñ - ÖÜÆÚ50ms£¬ÓÅÏÈ¼¶Îª5
  *----------------------------------------------------------*/
-/*ç”µæœºè¿è¡Œèµ·æ¥å¿…é¡»æœ‰ä¸‰ä¸ªå‡½æ•°è°ƒç”¨ï¼šå¯åŠ¨ã€è®¾ç½®è½¬é€Ÿã€è®¾ç½®æ–¹å‘*/
+/*µç»úÔËĞĞÆğÀ´±ØĞëÓĞÈı¸öº¯Êıµ÷ÓÃ£ºÆô¶¯¡¢ÉèÖÃ×ªËÙ¡¢ÉèÖÃ·½Ïò*/
 void MotorControlTask(void *pvParameters)
 {
     float pidOutput;
     
     while (1)
     {
-        // CCRå¯„å­˜å™¨çš„æ¯”è¾ƒå€¼ï¼Œç”¨äºè®¾ç½®PWMå ç©ºæ¯”
-        // CCR=0è¡¨ç¤ºPWMå ç©ºæ¯”ä¸º0%ï¼ŒCCR=MAXCCRè¡¨ç¤ºPWMå ç©ºæ¯”ä¸º100%
+        // CCR¼Ä´æÆ÷µÄ±È½ÏÖµ£¬ÓÃÓÚÉèÖÃPWMÕ¼¿Õ±È
+        // CCR=0±íÊ¾PWMÕ¼¿Õ±ÈÎª0%£¬CCR=MAXCCR±íÊ¾PWMÕ¼¿Õ±ÈÎª100%
         u16 pwmCompare = 0;
 
-        /* è·å–å®é™…è½¬é€Ÿ */
+        /* »ñÈ¡Êµ¼Ê×ªËÙ */
         if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
         {
             g_systemState.actualRPM = speed;
@@ -412,9 +412,9 @@ void MotorControlTask(void *pvParameters)
         
         switch (g_systemState.currentMode)
         {
-            // å¾…æœºæ¨¡å¼ï¼šç”µæœºåœæ­¢ï¼Œä½†ä»è®¡ç®—é£é€Ÿ
+            // ´ı»úÄ£Ê½£ºµç»úÍ£Ö¹£¬µ«ÈÔ¼ÆËã·çËÙ
             case MODE_STANDBY:
-                /* å¾…æœºæ¨¡å¼ï¼šç”µæœºåœæ­¢ï¼Œä½†ä»è®¡ç®—é£é€Ÿ */
+                /* ´ı»úÄ£Ê½£ºµç»úÍ£Ö¹£¬µ«ÈÔ¼ÆËã·çËÙ */
                 motor_stop();
                 g_systemState.motorRunning = 0;
                 g_systemState.autoModeCounter = 0;
@@ -422,72 +422,72 @@ void MotorControlTask(void *pvParameters)
                 g_autoModeState = AUTO_STATE_STARTUP;
                 break;
             
-            // æ‰‹åŠ¨æ¨¡å¼ï¼šæ ¹æ®é«˜ã€ä½æ¡£ä½è®¾ç½®ç›®æ ‡è½¬é€Ÿï¼Œä½¿ç”¨PIDæ§åˆ¶ç”µæœº
+            // ÊÖ¶¯Ä£Ê½£º¸ù¾İ¸ß¡¢µÍµµÎ»ÉèÖÃÄ¿±ê×ªËÙ£¬Ê¹ÓÃPID¿ØÖÆµç»ú
             case MODE_MANUAL:
-                /* æ‰‹åŠ¨æ¨¡å¼ï¼šPIDæ§åˆ¶ç”µæœºè½¬é€Ÿ */
+                /* ÊÖ¶¯Ä£Ê½£ºPID¿ØÖÆµç»ú×ªËÙ */
                 if(g_systemState.motorRunning == 0)
                 {
-                    // ä½¿èƒ½Hæ¡¥é©±åŠ¨ç”µè·¯
+                    // Ê¹ÄÜHÇÅÇı¶¯µçÂ·
                     motor_start();
                     g_systemState.motorRunning = 1;
                 }
-                // æ ¹æ®æ¡£ä½è®¾ç½®ç›®æ ‡è½¬é€Ÿï¼Œè®¡ç®—PIDè¾“å‡ºï¼Œå¹¶è®¾ç½®ç”µæœºPWM
+                // ¸ù¾İµµÎ»ÉèÖÃÄ¿±ê×ªËÙ£¬¼ÆËãPIDÊä³ö£¬²¢ÉèÖÃµç»úPWM
                 if (g_systemState.motorRunning)
                 {
-                    /*1.è®¾ç½®ç›®æ ‡è½¬é€Ÿæ¡£ä½;2.è®¡ç®—PIDè¾“å‡º;3.è®¾ç½®ç”µæœºPWM*/
-                    // speedLevel = SPEED_LOWæˆ–SPEED_HIGHï¼Œé»˜è®¤ä¸ºSPEED_LOW
+                    /*1.ÉèÖÃÄ¿±ê×ªËÙµµÎ»;2.¼ÆËãPIDÊä³ö;3.ÉèÖÃµç»úPWM*/
+                    // speedLevel = SPEED_LOW»òSPEED_HIGH£¬Ä¬ÈÏÎªSPEED_LOW
                     g_systemState.targetRPM = WindSpeed_GetTargetRPM(g_systemState.speedLevel);
-                    // è®¾ç½®PIDç›®æ ‡è½¬é€Ÿ
+                    // ÉèÖÃPIDÄ¿±ê×ªËÙ
                     PID_SetTarget(&g_speedPID, (float)g_systemState.targetRPM);
-                    /*ä¼ å…¥å®é™…è½¬é€Ÿï¼Œè®¡ç®—æ§åˆ¶è¾“å‡º*/
+                    /*´«ÈëÊµ¼Ê×ªËÙ£¬¼ÆËã¿ØÖÆÊä³ö*/
                     pidOutput = PID_Calculate(&g_speedPID, speed);
-                    /*æŠŠPIDè¾“å‡ºè½¬æ¢ä¸ºPWM*/
+                    /*°ÑPIDÊä³ö×ª»»ÎªPWM*/
                     motor_pwm_set(pidOutput);
                 }
                 break;
             
-            // è‡ªåŠ¨æ¨¡å¼ï¼šæ ¹æ®ä¼ æ„Ÿå™¨æ•°æ®è‡ªåŠ¨è°ƒèŠ‚ç”µæœºè½¬é€Ÿ
+            // ×Ô¶¯Ä£Ê½£º¸ù¾İ´«¸ĞÆ÷Êı¾İ×Ô¶¯µ÷½Úµç»ú×ªËÙ
             case MODE_AUTO:
-                /* è‡ªåŠ¨æ¨¡å¼çŠ¶æ€æœº */
+                /* ×Ô¶¯Ä£Ê½×´Ì¬»ú */
                 switch (g_autoModeState)
                 {
-                    // å¯åŠ¨é˜¶æ®µï¼šä»¥æœ€å°è½¬é€Ÿè¿è¡Œï¼Œç­‰å¾…Cooking Event
+                    // Æô¶¯½×¶Î£ºÒÔ×îĞ¡×ªËÙÔËĞĞ£¬µÈ´ıCooking Event
                     case AUTO_STATE_STARTUP:
                         if (!g_systemState.motorRunning)
                         {
                             g_systemState.motorRunning = 1;
-                            // ä½¿èƒ½Hæ¡¥é©±åŠ¨ç”µè·¯
+                            // Ê¹ÄÜHÇÅÇı¶¯µçÂ·
                             motor_start();
                         }
 
-                        /* ä½¿ç”¨æœ€å°è½¬é€Ÿä»£è¡¨è‡ªåŠ¨æ¨¡å¼å¼€å¯ */                       
+                        /* Ê¹ÓÃ×îĞ¡×ªËÙ´ú±í×Ô¶¯Ä£Ê½¿ªÆô */                       
                         {
-                            // å ç©ºæ¯”PWM_MIN = 20ï¼Œé»˜è®¤æœ€å°è½¬é€Ÿä¸º20%ï¼Œä¹˜ä»¥10æ˜¯å› ä¸ºmotor_pwm_setå‡½æ•°çš„å‚æ•°èŒƒå›´æ˜¯0-1000ï¼Œè€ŒPWM_MINæ˜¯0-100
+                            // Õ¼¿Õ±ÈPWM_MIN = 20£¬Ä¬ÈÏ×îĞ¡×ªËÙÎª20%£¬³ËÒÔ10ÊÇÒòÎªmotor_pwm_setº¯ÊıµÄ²ÎÊı·¶Î§ÊÇ0-1000£¬¶øPWM_MINÊÇ0-100
                             motor_pwm_set(PWM_MIN*10);
                         }
-                        // åœ¨å¯åŠ¨é˜¶æ®µï¼Œè®¡æ—¶å™¨æ¯50mså¢åŠ 50msï¼Œç›´åˆ°è¾¾åˆ°AUTO_MODE_STARTUP_TIMEï¼ˆ60ç§’ï¼‰ï¼Œå¦‚æœåœ¨æ­¤æœŸé—´æ£€æµ‹åˆ°Cooking Eventï¼Œåˆ™è¿›å…¥Cookingé˜¶æ®µ
+                        // ÔÚÆô¶¯½×¶Î£¬¼ÆÊ±Æ÷Ã¿50msÔö¼Ó50ms£¬Ö±µ½´ïµ½AUTO_MODE_STARTUP_TIME£¨60Ãë£©£¬Èç¹ûÔÚ´ËÆÚ¼ä¼ì²âµ½Cooking Event£¬Ôò½øÈëCooking½×¶Î
                         g_systemState.autoModeCounter += 50;
-                        // æ£€æµ‹åˆ°Cooking Eventï¼Œè¿›å…¥æ¿€æ´»Cookingäº‹ä»¶
+                        // ¼ì²âµ½Cooking Event£¬½øÈë¼¤»îCookingÊÂ¼ş
                         if (g_systemState.cookingEventActive)
                         {
-                            /* æ£€æµ‹åˆ°Cooking Event */
+                            /* ¼ì²âµ½Cooking Event */
                             g_autoModeState = AUTO_STATE_COOKING;
                         }
-                        // å¦‚æœ60ç§’å†…æœªæ£€æµ‹åˆ°Cooking Eventï¼Œå…³é—­è‡ªåŠ¨æ¨¡å¼ï¼Œåˆ‡æ¢åˆ°å¾…æœºæ¨¡å¼ï¼Œå¹¶åœæ­¢ç”µæœºè¿è¡Œ
+                        // Èç¹û60ÃëÄÚÎ´¼ì²âµ½Cooking Event£¬¹Ø±Õ×Ô¶¯Ä£Ê½£¬ÇĞ»»µ½´ı»úÄ£Ê½£¬²¢Í£Ö¹µç»úÔËĞĞ
                         else if (g_systemState.autoModeCounter >= AUTO_MODE_STARTUP_TIME)
                         {
-                            /* 60ç§’å†…æ— Cooking Eventï¼Œå…³é—­è‡ªåŠ¨æ¨¡å¼ */
-                            // å…³é—­è‡ªåŠ¨æ¨¡å¼æ—¶ï¼Œåˆ‡æ¢åˆ°å¾…æœºæ¨¡å¼ï¼Œå¹¶åœæ­¢ç”µæœºè¿è¡Œ
+                            /* 60ÃëÄÚÎŞCooking Event£¬¹Ø±Õ×Ô¶¯Ä£Ê½ */
+                            // ¹Ø±Õ×Ô¶¯Ä£Ê½Ê±£¬ÇĞ»»µ½´ı»úÄ£Ê½£¬²¢Í£Ö¹µç»úÔËĞĞ
                             g_systemState.currentMode = MODE_STANDBY;
                             motor_stop();
                             g_systemState.motorRunning = 0;
                         }
                         break;
                     
-                    // Cooking Eventæ¿€æ´»é˜¶æ®µï¼šæ ¹æ®ä¼ æ„Ÿå™¨æ•°æ®è‡ªåŠ¨è°ƒèŠ‚ç”µæœºè½¬é€Ÿ
+                    // Cooking Event¼¤»î½×¶Î£º¸ù¾İ´«¸ĞÆ÷Êı¾İ×Ô¶¯µ÷½Úµç»ú×ªËÙ
                     case AUTO_STATE_COOKING:
                         {
-                            /*è¯»å–WindSpeedTaské£é€Ÿç®—æ³•è®¡ç®—å¾—åˆ°çš„å€¼ï¼ŒMAXCCRä¸ºæœ€å¤§å ç©ºæ¯”*/
+                            /*¶ÁÈ¡WindSpeedTask·çËÙËã·¨¼ÆËãµÃµ½µÄÖµ£¬MAXCCRÎª×î´óÕ¼¿Õ±È*/
                             // MAXCCR = 1000
                             pwmCompare = WindSpeed_GetPWMCompare(MAXCCR);
                             motor_pwm_set(pwmCompare);
@@ -495,28 +495,28 @@ void MotorControlTask(void *pvParameters)
                         
                         g_systemState.cookingEventCounter += 50;
                         
-                        // å¦‚æœCooking Eventç»“æŸï¼Œè¿›å…¥å»¶æ—¶å…³é—­é˜¶æ®µï¼›å¦‚æœCooking EventæŒç»­è¶…è¿‡60ç§’ï¼Œå…³é—­è‡ªåŠ¨æ¨¡å¼
+                        // Èç¹ûCooking Event½áÊø£¬½øÈëÑÓÊ±¹Ø±Õ½×¶Î£»Èç¹ûCooking Event³ÖĞø³¬¹ı60Ãë£¬¹Ø±Õ×Ô¶¯Ä£Ê½
                         if (!g_systemState.cookingEventActive)
                         {
-                            /* Cooking Eventç»“æŸ */
+                            /* Cooking Event½áÊø */
                             g_autoModeState = AUTO_STATE_DELAY_OFF;
                             g_systemState.cookingEventCounter = 0;
                         }
-                        // å¦‚æœCooking EventæŒç»­è¶…è¿‡60ç§’ï¼Œå…³é—­è‡ªåŠ¨æ¨¡å¼
+                        // Èç¹ûCooking Event³ÖĞø³¬¹ı60Ãë£¬¹Ø±Õ×Ô¶¯Ä£Ê½
                         else if (g_systemState.cookingEventCounter >= COOKING_EVENT_TIMEOUT)
                         {
-                            /* Cooking EventæŒç»­è¶…è¿‡60ç§’ï¼Œå…³é—­è‡ªåŠ¨æ¨¡å¼ */
+                            /* Cooking Event³ÖĞø³¬¹ı60Ãë£¬¹Ø±Õ×Ô¶¯Ä£Ê½ */
                             g_systemState.currentMode = MODE_STANDBY;
                             motor_stop();
                             g_systemState.motorRunning = 0;
                         }
                         break;
                     
-                    // å»¶æ—¶å…³é—­é˜¶æ®µï¼šCooking Eventç»“æŸåï¼Œå»¶æ—¶10ç§’å…³é—­ç”µæœº
+                    // ÑÓÊ±¹Ø±Õ½×¶Î£ºCooking Event½áÊøºó£¬ÑÓÊ±10Ãë¹Ø±Õµç»ú
                     case AUTO_STATE_DELAY_OFF:
-                        /* å»¶æ—¶å…³é—­é˜¶æ®µ */
+                        /* ÑÓÊ±¹Ø±Õ½×¶Î */
                         {
-                            /*ä¾æ®å·²çŸ¥é£é€Ÿè¾“å‡ºè½¬é€Ÿï¼ŒMAXCCRä¸ºæœ€å¤§å ç©ºæ¯”*/
+                            /*ÒÀ¾İÒÑÖª·çËÙÊä³ö×ªËÙ£¬MAXCCRÎª×î´óÕ¼¿Õ±È*/
                             pwmCompare = WindSpeed_GetPWMCompare(MAXCCR);
                             motor_pwm_set(pwmCompare);
                         }
@@ -525,13 +525,13 @@ void MotorControlTask(void *pvParameters)
                         
                         if (g_systemState.cookingEventActive)
                         {
-                            /* åˆæ£€æµ‹åˆ°Cooking Event */
+                            /* ÓÖ¼ì²âµ½Cooking Event */
                             g_autoModeState = AUTO_STATE_COOKING;
                             g_systemState.cookingEventCounter = 0;
                         }
                         else if (g_systemState.cookingEventCounter >= COOKING_EVENT_DELAY_OFF)
                         {
-                            /* 10ç§’å»¶æ—¶ç»“æŸï¼Œå…³é—­è‡ªåŠ¨æ¨¡å¼ */
+                            /* 10ÃëÑÓÊ±½áÊø£¬¹Ø±Õ×Ô¶¯Ä£Ê½ */
                             g_systemState.currentMode = MODE_STANDBY;
                             motor_stop();
                             g_systemState.motorRunning = 0;
@@ -540,12 +540,12 @@ void MotorControlTask(void *pvParameters)
                 }
                 break;
             
-            // é˜²å›æµæ¨¡å¼ï¼šç”±é˜²å›æµä»»åŠ¡æ§åˆ¶
+            // ·À»ØÁ÷Ä£Ê½£ºÓÉ·À»ØÁ÷ÈÎÎñ¿ØÖÆ
             case MODE_ANTI_BACKFLOW:
-                /* é˜²å›æµæ¨¡å¼ï¼šç”±é˜²å›æµä»»åŠ¡æ§åˆ¶ */
+                /* ·À»ØÁ÷Ä£Ê½£ºÓÉ·À»ØÁ÷ÈÎÎñ¿ØÖÆ */
                 if (g_systemState.antiBackflowActive && g_systemState.motorRunning)
                 {
-                    /* ä½¿ç”¨ç”¨æˆ·è®¾å®šçš„æ¡£ä½è½¬é€Ÿ */
+                    /* Ê¹ÓÃÓÃ»§Éè¶¨µÄµµÎ»×ªËÙ */
                     g_systemState.targetRPM = WindSpeed_GetTargetRPM(g_systemState.speedLevel);
                     PID_SetTarget(&g_speedPID, (float)g_systemState.targetRPM);
                     pidOutput = PID_Calculate(&g_speedPID, speed);
@@ -554,62 +554,62 @@ void MotorControlTask(void *pvParameters)
                 break;
         }
         
-        delay_ms(50);   /* 50msæ§åˆ¶å‘¨æœŸ */
+        delay_ms(50);   /* 50ms¿ØÖÆÖÜÆÚ */
     }
 }
 
 /*-----------------------------------------------------------
- * UIæ˜¾ç¤ºä»»åŠ¡ - å‘¨æœŸ200msï¼Œä¼˜å…ˆçº§ä¸º1
+ * UIÏÔÊ¾ÈÎÎñ - ÖÜÆÚ200ms£¬ÓÅÏÈ¼¶Îª1
  *----------------------------------------------------------*/
 void UIDisplayTask(void *pvParameters)
 {
     char dispBuf[32];
     
-    /* æ¸…å± */
+    /* ÇåÆÁ */
     LCD_Clear(WHITE); 
     
     while (1)
     {
-        /* æ˜¾ç¤ºå½“å‰æ¨¡å¼ */
-        /*è¯¥å‡½æ•°ç”¨äºæ•°å­—è½¬å­—ç¬¦ä¸²ï¼Œæˆ–è€…æ˜¯æ„å»ºå¤æ‚å­—ç¬¦ä¸²ï¼Œå¦‚æœ€åä¸€ä¸ªå‚æ•°å€¼æ˜¯manual,åˆ™dispBufçš„ç»“æœä¸ºMode:manual*/
-        // ç¬¬1è¡Œï¼ˆy=20ï¼‰ï¼šæ˜¾ç¤ºå½“å‰æ¨¡å¼ï¼ˆæ¯”å¦‚ "Mode:Manual"ï¼‰
+        /* ÏÔÊ¾µ±Ç°Ä£Ê½ */
+        /*¸Ãº¯ÊıÓÃÓÚÊı×Ö×ª×Ö·û´®£¬»òÕßÊÇ¹¹½¨¸´ÔÓ×Ö·û´®£¬Èç×îºóÒ»¸ö²ÎÊıÖµÊÇmanual,ÔòdispBufµÄ½á¹ûÎªMode:manual*/
+        // µÚ1ĞĞ£¨y=20£©£ºÏÔÊ¾µ±Ç°Ä£Ê½£¨±ÈÈç "Mode:Manual"£©
         sprintf(dispBuf, "Mode:%s", ModeNames[g_systemState.currentMode]);
         Show_Str(0, 20, BLUE, WHITE, (u8*)dispBuf, 16, 0);
         
-        /* æ˜¾ç¤ºæ¡£ä½ */
-        // ç¬¬2è¡Œï¼ˆy=40ï¼‰ï¼šæ˜¾ç¤ºæ¡£ä½ï¼ˆæ¯”å¦‚ "Level:HIGH"ï¼‰
+        /* ÏÔÊ¾µµÎ» */
+        // µÚ2ĞĞ£¨y=40£©£ºÏÔÊ¾µµÎ»£¨±ÈÈç "Level:HIGH"£©
         sprintf(dispBuf, "Level:%s", SpeedLevelNames[g_systemState.speedLevel]);
         Show_Str(0, 40, BLUE, WHITE, (u8*)dispBuf, 16, 0);
  
-        /* æ˜¾ç¤ºé£é€ŸPWM */
-        // ç¬¬3è¡Œï¼ˆy=60ï¼‰ï¼šæ˜¾ç¤ºè‡ªåŠ¨æ²¹é—¨å¤§å°ï¼ˆæ¯”å¦‚ "WIND:65.0%"ï¼‰
+        /* ÏÔÊ¾·çËÙPWM */
+        // µÚ3ĞĞ£¨y=60£©£ºÏÔÊ¾×Ô¶¯ÓÍÃÅ´óĞ¡£¨±ÈÈç "WIND:65.0%"£©
         sprintf(dispBuf, "WIND:%.1f%%  ", g_systemState.windSpeedPWM);
         Show_Str(0, 60, BLUE, WHITE, (u8*)dispBuf, 16, 0);
         
-        /* æ˜¾ç¤ºå®é™…è½¬é€Ÿ */
-        // ç¬¬4è¡Œï¼ˆy=80ï¼‰ï¼šæ˜¾ç¤ºå½“å‰ç”µæœºçš„çœŸå®è½¬é€Ÿï¼ˆæ¯”å¦‚ "RPM:220"ï¼‰
+        /* ÏÔÊ¾Êµ¼Ê×ªËÙ */
+        // µÚ4ĞĞ£¨y=80£©£ºÏÔÊ¾µ±Ç°µç»úµÄÕæÊµ×ªËÙ£¨±ÈÈç "RPM:220"£©
         sprintf(dispBuf, "RPM:%.0f    ", g_systemState.actualRPM);
         Show_Str(0, 80, BLUE, WHITE, (u8*)dispBuf, 16, 0);
         
-        /* æ˜¾ç¤ºè‡ªåŠ¨æ¨¡å¼çŠ¶æ€ */
+        /* ÏÔÊ¾×Ô¶¯Ä£Ê½×´Ì¬ */
         sprintf(dispBuf, "Auto:%s", AutoStateNames[g_autoModeState]);
         Show_Str(0, 100, BLUE, WHITE, (u8*)dispBuf, 16, 0);
         
-        /* æ˜¾ç¤ºè‡ªåŠ¨æ¨¡å¼å¯åŠ¨è®¡æ—¶ */
+        /* ÏÔÊ¾×Ô¶¯Ä£Ê½Æô¶¯¼ÆÊ± */
         sprintf(dispBuf, "AMCnt:%ds  ", g_systemState.autoModeCounter / 1000);
         Show_Str(0, 120, BLUE, WHITE, (u8*)dispBuf, 16, 0);
         
-        /* æ˜¾ç¤ºCooking Eventè®¡æ—¶ */
+        /* ÏÔÊ¾Cooking Event¼ÆÊ± */
         sprintf(dispBuf, "CECnt:%ds  ", g_systemState.cookingEventCounter / 1000);
         Show_Str(0, 140, BLUE, WHITE, (u8*)dispBuf, 16, 0);
         
-        /* 3. çµé­‚ä¸€ç¬”ï¼šç”»å®Œä¹‹åï¼Œä¸»åŠ¨ç¡ 200 æ¯«ç§’ï¼*/
-        delay_ms(200);  /* 200msåˆ·æ–°å‘¨æœŸ */
+        /* 3. Áé»êÒ»±Ê£º»­ÍêÖ®ºó£¬Ö÷¶¯Ë¯ 200 ºÁÃë£¡*/
+        delay_ms(200);  /* 200msË¢ĞÂÖÜÆÚ */
     }
 }
 
 /*-----------------------------------------------------------
- * é˜²å›æµä»»åŠ¡ - å‘¨æœŸ100msï¼Œä¼˜å…ˆçº§ä¸º2
+ * ·À»ØÁ÷ÈÎÎñ - ÖÜÆÚ100ms£¬ÓÅÏÈ¼¶Îª2
  *----------------------------------------------------------*/
 void AntiBackflowTask(void *pvParameters)
 {
@@ -617,28 +617,28 @@ void AntiBackflowTask(void *pvParameters)
 
     while (1)
     {
-        /* åˆ¤æ–­æ˜¯å¦æ˜¯é˜²å›æµæ¨¡å¼ */
+        /* ÅĞ¶ÏÊÇ·ñÊÇ·À»ØÁ÷Ä£Ê½ */
         if (g_systemState.currentMode == MODE_ANTI_BACKFLOW)
         {
             isDetected = (g_systemState.gasConcentration >= g_systemState.gasThreshold) ? 1 : 0;
 
             if(isDetected)
             {
-                if(g_systemState.gasConcentration < GAS_THRESHOLD_HIGH)/*é˜²æ­¢åœ¨æç«¯æƒ…å†µä¸‹ä¼šé‡å¯é£æœº*/
+                if(g_systemState.gasConcentration < GAS_THRESHOLD_HIGH)/*·ÀÖ¹ÔÚ¼«¶ËÇé¿öÏÂ»áÖØÆô·ç»ú*/
                 {
-                        /* æ°”ä½“è¶…è¿‡NORMALé˜ˆå€¼ï¼Œå¯åŠ¨é£æœº */
+                        /* ÆøÌå³¬¹ıNORMALãĞÖµ£¬Æô¶¯·ç»ú */
                         g_systemState.antiBackflowActive = 1;
                         g_systemState.motorRunning = 1;
                         motor_start();
                         
-                        /* ç«‹å³åˆ‡æ¢åˆ°HIGHé˜ˆå€¼ï¼Œé˜²æ­¢é‡å¤è§¦å‘ */
+                        /* Á¢¼´ÇĞ»»µ½HIGHãĞÖµ£¬·ÀÖ¹ÖØ¸´´¥·¢ */
                         g_systemState.gasThreshold = GAS_THRESHOLD_HIGH;
                 }
             }
-            //è®¾ç½®MQ2æ£€æµ‹æ°”ä½“ä½äº50æ‰è§¦å‘ç”µæœºåœæ­¢
+            //ÉèÖÃMQ2¼ì²âÆøÌåµÍÓÚ50²Å´¥·¢µç»úÍ£Ö¹
             else if(g_systemState.gasConcentration < GAS_THRESHOLD_STOP)
             {
-                /* æ°”ä½“æµ“åº¦é™åˆ°STOPé˜ˆå€¼ä»¥ä¸‹ï¼Œåœæ­¢é£æœº */
+                /* ÆøÌåÅ¨¶È½µµ½STOPãĞÖµÒÔÏÂ£¬Í£Ö¹·ç»ú */
                 g_systemState.antiBackflowActive = 0;
                 g_systemState.motorRunning = 0;
                 motor_stop();
@@ -648,84 +648,84 @@ void AntiBackflowTask(void *pvParameters)
         }
         else
         {
-            /* éé˜²å›æµæ¨¡å¼ï¼Œé‡ç½®æ‰€æœ‰çŠ¶æ€ */
+            /* ·Ç·À»ØÁ÷Ä£Ê½£¬ÖØÖÃËùÓĞ×´Ì¬ */
             g_systemState.antiBackflowActive = 0;
             g_systemState.gasThreshold = GAS_THRESHOLD_NORMAL;
         }
         
-        delay_ms(100);  /* 100msæ£€æµ‹å‘¨æœŸ */
+        delay_ms(100);  /* 100ms¼ì²âÖÜÆÚ */
     }
 }
 
 
 /*--------------------------------------------------------------
-*@brief: Bootloaderä»»åŠ¡,ç”¨äºå›ºä»¶å‡çº§
+*@brief: BootloaderÈÎÎñ,ÓÃÓÚ¹Ì¼şÉı¼¶
 *@para: *pvParameters
 *@return: none
-ä¼˜å…ˆçº§ä¸º7
+ÓÅÏÈ¼¶Îª7
 ---------------------------------------------------------------*/	  
 #if ifopen
 void iap_task(void *pvParameters)
 {
 	uint16_t receivedLength;
-	u32 firmwareLen;  /* å®é™…å›ºä»¶é•¿åº¦ï¼ˆä¸å«CRCï¼‰ */
+	u32 firmwareLen;  /* Êµ¼Ê¹Ì¼ş³¤¶È£¨²»º¬CRC£© */
 	while(1)
 	{
-		xSemaphoreTake(g_iapSemaphore,portMAX_DELAY);	/*ç­‰å¾…ä¿¡å·é‡ï¼ŒportMAX_DELAYä»£è¡¨æ— é™ç­‰*/
+		xSemaphoreTake(g_iapSemaphore,portMAX_DELAY);	/*µÈ´ıĞÅºÅÁ¿£¬portMAX_DELAY´ú±íÎŞÏŞµÈ*/
 #if DEBUG
-		printf("excute iap_task");//è°ƒè¯•ç”¨
+		printf("excute iap_task");//µ÷ÊÔÓÃ
 #endif
-        // ä¸²å£ç©ºé—²ä¸­æ–­ï¼ŒåŠ¨æ€è®¡ç®—å›ºä»¶binæ–‡ä»¶çš„å¤§å°
-		receivedLength = GetReceivedDataLength();/*è®¡ç®—æ‰€æ¥æ”¶çš„æ•°æ®é‡ï¼Œéœ€è¦å°†è¯¥å˜é‡æ”¾åœ¨ç­‰å¾…ä¿¡å·é‡å‡½æ•°åï¼Œä»¥ç¡®ä¿åŠæ—¶æ›´æ–°*/
-		if(receive_buff[0])//çœ‹æ˜¯å¦æ¥æ”¶åˆ°äº†APPä»£ç 
+        // ´®¿Ú¿ÕÏĞÖĞ¶Ï£¬¶¯Ì¬¼ÆËã¹Ì¼şbinÎÄ¼şµÄ´óĞ¡
+		receivedLength = GetReceivedDataLength();/*¼ÆËãËù½ÓÊÕµÄÊı¾İÁ¿£¬ĞèÒª½«¸Ã±äÁ¿·ÅÔÚµÈ´ıĞÅºÅÁ¿º¯Êıºó£¬ÒÔÈ·±£¼°Ê±¸üĞÂ*/
+		if(receive_buff[0])//¿´ÊÇ·ñ½ÓÊÕµ½ÁËAPP´úÂë
 		{
 				printf("received the size of firmware=%d\r\n",receivedLength);
 
-				/*==================== CRC32æ ¡éªŒ ====================*/
-				/* æ ¡éªŒæ¥æ”¶åˆ°çš„å›ºä»¶æ•°æ®å®Œæ•´æ€§ */
-				/* æ•°æ®æ ¼å¼ï¼š[å›ºä»¶æ•°æ®][4å­—èŠ‚CRC32] */
+				/*==================== CRC32Ğ£Ñé ====================*/
+				/* Ğ£Ñé½ÓÊÕµ½µÄ¹Ì¼şÊı¾İÍêÕûĞÔ */
+				/* Êı¾İ¸ñÊ½£º[¹Ì¼şÊı¾İ][4×Ö½ÚCRC32] */
 				if(CRC32_VerifyFirmware(receive_buff, receivedLength) == 0)
 				{
-                    /* CRCæ ¡éªŒå¤±è´¥ï¼Œæ¸…ç©ºç¼“å†²åŒºå¹¶ç­‰å¾…é‡ä¼  */
+                    /* CRCĞ£ÑéÊ§°Ü£¬Çå¿Õ»º³åÇø²¢µÈ´ıÖØ´« */
                     #if DEBUG
                         printf("CRC32 verify failed!\r\n");
                     #endif
 					Show_Str(0,0,BLUE,WHITE,"CRC32 Error!",16,0);
-					memset(receive_buff,0,buff_size);   //æ¸…ç©ºæ•°ç»„
-					MYDMA_Enable(DMA1_Channel5);//å¼€å¯ä¸€æ¬¡DMAä¼ è¾“ï¼Œç”¨äºä¸‹æ¬¡æ›´æ–°
+					memset(receive_buff,0,buff_size);   //Çå¿ÕÊı×é
+					MYDMA_Enable(DMA1_Channel5);//¿ªÆôÒ»´ÎDMA´«Êä£¬ÓÃÓÚÏÂ´Î¸üĞÂ
 					FLASH_ErasePage(FLASH_APP1_ADDR);
 				}
 				else
 				{
-                    /* CRCæ ¡éªŒé€šè¿‡ï¼Œç»§ç»­åç»­æµç¨‹ */
+                    /* CRCĞ£ÑéÍ¨¹ı£¬¼ÌĞøºóĞøÁ÷³Ì */
                     #if DEBUG
                         printf("CRC32 verify passed!\r\n");
                     #endif
-					firmwareLen = receivedLength - 4;  /* å®é™…å›ºä»¶é•¿åº¦ = æ€»é•¿åº¦ - 4å­—èŠ‚CRC */
+					firmwareLen = receivedLength - 4;  /* Êµ¼Ê¹Ì¼ş³¤¶È = ×Ü³¤¶È - 4×Ö½ÚCRC */
 				
-					/*æ‹·è´ã€è·³è½¬*/
-					if(((*(vu32*)(0X20004000+4))&0xFF000000)==0x08000000)//åˆ¤æ–­æ˜¯å¦ä¸º0X08XXXXXX.
+					/*¿½±´¡¢Ìø×ª*/
+					if(((*(vu32*)(0X20004000+4))&0xFF000000)==0x08000000)//ÅĞ¶ÏÊÇ·ñÎª0X08XXXXXX.
 					{	
-                        LCD_Clear(WHITE);               /* æ¸…å± */ 
-						Show_Str(0,80,BLUE,WHITE,"Firmware updating!",16,0);/*æ‰“å°ä¿¡æ¯åœ¨LCDå±å¹•ä¸Šä»£è¡¨æ­£åœ¨æ›´æ–°*/
+                        LCD_Clear(WHITE);               /* ÇåÆÁ */ 
+						Show_Str(0,80,BLUE,WHITE,"Firmware updating!",16,0);/*´òÓ¡ĞÅÏ¢ÔÚLCDÆÁÄ»ÉÏ´ú±íÕıÔÚ¸üĞÂ*/
 
-						FLASH_ErasePage(FLASH_APP1_ADDR);/*å…ˆæ“¦é™¤APPåŒºçš„flashï¼Œé˜²æ­¢æœ‰æ•°æ®æ®‹ç•™--ä¸ç”˜å¿ƒçš„å’¸é±¼*/
+						FLASH_ErasePage(FLASH_APP1_ADDR);/*ÏÈ²Á³ıAPPÇøµÄflash£¬·ÀÖ¹ÓĞÊı¾İ²ĞÁô--²»¸ÊĞÄµÄÏÌÓã*/
 
-						iap_write_appbin(FLASH_APP1_ADDR,receive_buff,firmwareLen);//æ›´æ–°FLASHä»£ç ï¼ˆåªå†™å…¥å›ºä»¶æ•°æ®ï¼Œä¸å«CRCï¼‰
+						iap_write_appbin(FLASH_APP1_ADDR,receive_buff,firmwareLen);//¸üĞÂFLASH´úÂë£¨Ö»Ğ´Èë¹Ì¼şÊı¾İ£¬²»º¬CRC£©
 
                         #if DEBUG
                             printf("firmware updated complete!\r\n");
                         #endif
                         
-                        Show_Str(0,100,BLUE,WHITE," update completed",16,0);/*æ‰“å°ä¿¡æ¯åœ¨LCDå±å¹•ä¸Šä»£è¡¨æ›´æ–°å®Œæˆ*/
+                        Show_Str(0,100,BLUE,WHITE," update completed",16,0);/*´òÓ¡ĞÅÏ¢ÔÚLCDÆÁÄ»ÉÏ´ú±í¸üĞÂÍê³É*/
 
-						if(((*(vu32*)(FLASH_APP1_ADDR+4))&0xFF000000)==0x08000000)//åˆ¤æ–­æ˜¯å¦ä¸º0X08XXXXXX.
+						if(((*(vu32*)(FLASH_APP1_ADDR+4))&0xFF000000)==0x08000000)//ÅĞ¶ÏÊÇ·ñÎª0X08XXXXXX.
 						{	
                             #if DEBUG
                                 printf("firmware execution started!\r\n");
                             #endif
-                            Show_Str(0,120,BLUE,WHITE," excute app",16,0);/*æ‰“å°ä¿¡æ¯åœ¨LCDå±å¹•ä¸Šä»£è¡¨æ‰§è¡ŒAPP*/
-							iap_load_app(FLASH_APP1_ADDR);//æ‰§è¡ŒFLASH APPä»£ç 
+                            Show_Str(0,120,BLUE,WHITE," excute app",16,0);/*´òÓ¡ĞÅÏ¢ÔÚLCDÆÁÄ»ÉÏ´ú±íÖ´ĞĞAPP*/
+							iap_load_app(FLASH_APP1_ADDR);//Ö´ĞĞFLASH APP´úÂë
 						}
 						else{
                             #if DEBUG
@@ -734,10 +734,10 @@ void iap_task(void *pvParameters)
 							
 						}	
 					}
-					/*å¦‚æœåˆ¤æ–­å›ºä»¶å¤±è´¥ï¼Œå…ˆå°†æ¥æ”¶APPæ•°ç»„æƒ…å†µï¼Œé˜²æ­¢æ•°æ®æ®‹ç•™å¹¶é‡æ–°å¼€å¯DMAï¼Œç”¨äºä¸‹æ¬¡æ›´æ–°--ä¸ç”˜å¿ƒçš„å’¸é±¼*/
+					/*Èç¹ûÅĞ¶Ï¹Ì¼şÊ§°Ü£¬ÏÈ½«½ÓÊÕAPPÊı×éÇé¿ö£¬·ÀÖ¹Êı¾İ²ĞÁô²¢ÖØĞÂ¿ªÆôDMA£¬ÓÃÓÚÏÂ´Î¸üĞÂ--²»¸ÊĞÄµÄÏÌÓã*/
 					else{
-						memset(receive_buff,0,buff_size);   //æ¸…ç©ºæ•°ç»„
-						MYDMA_Enable(DMA1_Channel5);//å¼€å¯ä¸€æ¬¡DMAä¼ è¾“ï¼Œç”¨äºä¸‹æ¬¡æ›´æ–°
+						memset(receive_buff,0,buff_size);   //Çå¿ÕÊı×é
+						MYDMA_Enable(DMA1_Channel5);//¿ªÆôÒ»´ÎDMA´«Êä£¬ÓÃÓÚÏÂ´Î¸üĞÂ
                         #if DEBUG
                             printf("error! firmware address judgment failed\r\n");
                         #endif
@@ -750,41 +750,42 @@ void iap_task(void *pvParameters)
 
 
 /*--------------------------------------------------------------------------------
-*@brief: DMAä¸­æ–­ä»»åŠ¡ï¼Œç”¨äºæ¥æ”¶APPç¨‹åº
+*@brief: DMAÖĞ¶ÏÈÎÎñ£¬ÓÃÓÚ½ÓÊÕAPP³ÌĞò
 *@para: *pvParameters
 *@return: none
 ----------------------------------------------------------------------------------*/	  
 void DMA1_Channel5_IRQHandler(void) 
 {
-		BaseType_t xHigherPriorityTaskWoken = pdFALSE;/*é‡Šæ”¾äºŒå€¼ä¿¡å·é‡æ‰€éœ€å‚æ•°ï¼Œåˆå§‹åŒ–ä¸ºpdFalse*/
-		// æ£€æŸ¥DMAä¼ è¾“å®Œæˆä¸­æ–­
+		BaseType_t xHigherPriorityTaskWoken = pdFALSE;/*ÊÍ·Å¶şÖµĞÅºÅÁ¿ËùĞè²ÎÊı£¬³õÊ¼»¯ÎªpdFalse*/
+		// ¼ì²éDMA´«ÊäÍê³ÉÖĞ¶Ï
 		if (DMA_GetITStatus(DMA1_IT_TC5))
 		{
-            // æ¸…é™¤ä¸­æ–­æ ‡å¿—
+            // Çå³ıÖĞ¶Ï±êÖ¾
             DMA_ClearITPendingBit(DMA1_IT_TC5);
             DMA_Cmd(DMA1_Channel5, DISABLE);
+
  #if DEBUG
-            printf("DMA TC Triggered (CNDTR=0)\r\n");
+            printf("DMA TC Triggered (CNDTR=0)\r\n"); // µ÷ÊÔÓÃ
 #endif
             if (g_iapSemaphore != NULL)
             {
-                xSemaphoreGiveFromISR(g_iapSemaphore, &xHigherPriorityTaskWoken);/*é‡Šæ”¾äºŒå€¼ä¿¡å·é‡*/	
+                xSemaphoreGiveFromISR(g_iapSemaphore, &xHigherPriorityTaskWoken);/*ÊÍ·Å¶şÖµĞÅºÅÁ¿*/	
             }
 		}
-		/* å¦‚æœéœ€è¦çš„è¯è¿›è¡Œä¸€æ¬¡ä»»åŠ¡åˆ‡æ¢ */
+		/* Èç¹ûĞèÒªµÄ»°½øĞĞÒ»´ÎÈÎÎñÇĞ»» */
 		portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 #endif
 
 
 /*-----------------------------------------------------------
- * åˆ‡æ¢å·¥ä½œæ¨¡å¼
+ * ÇĞ»»¹¤×÷Ä£Ê½
  *----------------------------------------------------------*/
 void System_SwitchMode(void)
 {
     if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
     {
-        /* æ¨¡å¼å¾ªç¯åˆ‡æ¢ï¼šå¾…æœº -> æ‰‹åŠ¨ -> è‡ªåŠ¨ -> é˜²å›æµ -> å¾…æœº */
+        /* Ä£Ê½Ñ­»·ÇĞ»»£º´ı»ú -> ÊÖ¶¯ -> ×Ô¶¯ -> ·À»ØÁ÷ -> ´ı»ú */
         switch (g_systemState.currentMode)
         {
             case MODE_STANDBY:
@@ -802,7 +803,7 @@ void System_SwitchMode(void)
                 break;
         }
         
-        /* åˆ‡æ¢æ¨¡å¼æ—¶åœæ­¢ç”µæœºï¼ˆé™¤è‡ªåŠ¨æ¨¡å¼å¤–ï¼‰ */
+        /* ÇĞ»»Ä£Ê½Ê±Í£Ö¹µç»ú£¨³ı×Ô¶¯Ä£Ê½Íâ£© */
         if (g_systemState.currentMode != MODE_AUTO)
         {
             g_systemState.motorRunning = 0;
@@ -814,13 +815,13 @@ void System_SwitchMode(void)
 }
 
 /*-----------------------------------------------------------
- * åˆ‡æ¢æ¡£ä½
+ * ÇĞ»»µµÎ»
  *----------------------------------------------------------*/
 void System_SwitchSpeedLevel(void)
 {
     if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
     {
-        /* æ¡£ä½å¾ªç¯åˆ‡æ¢ï¼šLOW -> HIGH -> LOW */
+        /* µµÎ»Ñ­»·ÇĞ»»£ºLOW -> HIGH -> LOW */
         switch (g_systemState.speedLevel)
         {
             case SPEED_LOW:
@@ -835,7 +836,7 @@ void System_SwitchSpeedLevel(void)
 }
 
 /*-----------------------------------------------------------
- * åˆ‡æ¢ç”µæœºå¼€å…³
+ * ÇĞ»»µç»ú¿ª¹Ø
  *----------------------------------------------------------*/
 void System_ToggleMotor(void)
 {
@@ -843,7 +844,7 @@ void System_ToggleMotor(void)
     {
         if (g_systemState.motorRunning)
         {
-            /* å…³é—­ç”µæœºï¼šå¼ºåˆ¶åˆ‡æ¢åˆ°å¾…æœºæ¨¡å¼ï¼Œç¡®ä¿MotorControlTaskä¸ä¼šé‡æ–°æ‹‰èµ·ç”µæœº */
+            /* ¹Ø±Õµç»ú£ºÇ¿ÖÆÇĞ»»µ½´ı»úÄ£Ê½£¬È·±£MotorControlTask²»»áÖØĞÂÀ­Æğµç»ú */
             motor_stop();
             g_systemState.motorRunning = 0;
             g_systemState.currentMode = MODE_STANDBY;
@@ -851,7 +852,7 @@ void System_ToggleMotor(void)
         }
         else
         {
-            /* å¼€å¯ç”µæœºï¼šå¼ºåˆ¶åˆ‡æ¢åˆ°æ‰‹åŠ¨æ¨¡å¼ï¼Œç¡®ä¿MotorControlTaskæŒç»­é©±åŠ¨ç”µæœº */
+            /* ¿ªÆôµç»ú£ºÇ¿ÖÆÇĞ»»µ½ÊÖ¶¯Ä£Ê½£¬È·±£MotorControlTask³ÖĞøÇı¶¯µç»ú */
             motor_start();
             g_systemState.motorRunning = 1;
             g_systemState.currentMode = MODE_MANUAL;
@@ -863,7 +864,7 @@ void System_ToggleMotor(void)
 }
 
 /*-----------------------------------------------------------
- * è·å–ç³»ç»ŸçŠ¶æ€
+ * »ñÈ¡ÏµÍ³×´Ì¬
  *----------------------------------------------------------*/
 SystemState_t* System_GetState(void)
 {
@@ -871,7 +872,7 @@ SystemState_t* System_GetState(void)
 }
 
 /*-----------------------------------------------------------
- * é€Ÿåº¦è®¡ç®—ä»»åŠ¡ - ç”±TIM4ä¸­æ–­è§¦å‘ï¼Œä¼˜å…ˆçº§ä¸º6
+ * ËÙ¶È¼ÆËãÈÎÎñ - ÓÉTIM4ÖĞ¶Ï´¥·¢£¬ÓÅÏÈ¼¶Îª6
  *----------------------------------------------------------*/
 void SpeedCalcTask(void *pvParameters)
 {
@@ -879,43 +880,43 @@ void SpeedCalcTask(void *pvParameters)
     
     while (1)
     {
-        /* ç­‰å¾…TIM4ä¸­æ–­å‘é€çš„ä¿¡å·é‡ */
+        /* µÈ´ıTIM4ÖĞ¶Ï·¢ËÍµÄĞÅºÅÁ¿ */
         if (xSemaphoreTake(g_speedCalcSemaphore, portMAX_DELAY) == pdTRUE)
         {
-            /* è·å–ç¼–ç å™¨è®¡æ•°å€¼ */
+            /* »ñÈ¡±àÂëÆ÷¼ÆÊıÖµ */
             encoderCount = get_encoder_value();
             
-            /* è®¡ç®—ç”µæœºè½¬é€Ÿï¼ˆ50msè®¡ç®—ä¸€æ¬¡ï¼‰ */
+            /* ¼ÆËãµç»ú×ªËÙ£¨50ms¼ÆËãÒ»´Î£© */
             speed = get_speed(encoderCount, 50);
         }
     }
 }
 
 /*-----------------------------------------------------------
- * TIM2ä¸­æ–­æœåŠ¡ç¨‹åº - ç¼–ç å™¨æº¢å‡ºå¤„ç†
+ * TIM2ÖĞ¶Ï·şÎñ³ÌĞò - ±àÂëÆ÷Òç³ö´¦Àí
  *----------------------------------------------------------*/
 void TIM2_IRQHandler(void)
 {
-    // å‡å¦‚TIM2å‘ç”Ÿäº†æ›´æ–°ä¸­æ–­ï¼ˆæº¢å‡ºï¼‰ï¼Œåˆ¤æ–­æº¢å‡ºæ–¹å‘
+    // ¼ÙÈçTIM2·¢ÉúÁË¸üĞÂÖĞ¶Ï£¨Òç³ö£©£¬ÅĞ¶ÏÒç³ö·½Ïò
     if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
     {
         TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
         
-        /* æ ¹æ®è®¡æ•°æ–¹å‘æ›´æ–°æº¢å‡ºè®¡æ•°å™¨ */
-        // ç¼–ç å™¨æ¨¡å¼ä¸‹ï¼ŒTIM_CR1_DIR ä½è¡¨ç¤ºå½“å‰è®¡æ•°æ–¹å‘
-        if (TIM_GetDirection(TIM2))  // 1: æ­£åœ¨å‘ä¸‹è®¡æ•°ï¼ˆåè½¬å‘ä¸‹æº¢å‡ºï¼‰DIRæ ‡å¿—ä½ä¸º1
+        /* ¸ù¾İ¼ÆÊı·½Ïò¸üĞÂÒç³ö¼ÆÊıÆ÷ */
+        // ±àÂëÆ÷Ä£Ê½ÏÂ£¬TIM_CR1_DIR Î»±íÊ¾µ±Ç°¼ÆÊı·½Ïò
+        if (TIM_GetDirection(TIM2))  // 1: ÕıÔÚÏòÏÂ¼ÆÊı£¨·´×ªÏòÏÂÒç³ö£©DIR±êÖ¾Î»Îª1
         {
-            overflow--;     /* é€’å‡è®¡æ•° */
+            overflow--;     /* µİ¼õ¼ÆÊı */
         }
-        else // 0: æ­£åœ¨å‘ä¸Šè®¡æ•°ï¼ˆæ­£è½¬å‘ä¸Šæº¢å‡ºï¼‰DIRæ ‡å¿—ä½ä¸º0
+        else // 0: ÕıÔÚÏòÉÏ¼ÆÊı£¨Õı×ªÏòÉÏÒç³ö£©DIR±êÖ¾Î»Îª0
         {
-            overflow++;     /* é€’å¢è®¡æ•° */
+            overflow++;     /* µİÔö¼ÆÊı */
         }
     }
 }
 
 /*-----------------------------------------------------------
- * TIM4ä¸­æ–­æœåŠ¡ç¨‹åº - è§¦å‘é€Ÿåº¦è®¡ç®—ä»»åŠ¡ï¼Œç¡¬ä»¶ä¸­æ–­ä¼˜å…ˆçº§ï¼Œé«˜äºä»»åŠ¡ä¼˜å…ˆçº§
+ * TIM4ÖĞ¶Ï·şÎñ³ÌĞò - ´¥·¢ËÙ¶È¼ÆËãÈÎÎñ£¬Ó²¼şÖĞ¶ÏÓÅÏÈ¼¶£¬¸ßÓÚÈÎÎñÓÅÏÈ¼¶
  *----------------------------------------------------------*/
 void TIM4_IRQHandler(void)
 {
@@ -925,10 +926,10 @@ void TIM4_IRQHandler(void)
     {
         TIM_ClearITPendingBit(TIM4, TIM_IT_Update);
         
-        /* å‘é€ä¿¡å·é‡é€šçŸ¥SpeedCalcTaskæ‰§è¡Œé€Ÿåº¦è®¡ç®— */
+        /* ·¢ËÍĞÅºÅÁ¿Í¨ÖªSpeedCalcTaskÖ´ĞĞËÙ¶È¼ÆËã */
         xSemaphoreGiveFromISR(g_speedCalcSemaphore, &xHigherPriorityTaskWoken);
         
-        /* å¦‚æœéœ€è¦ï¼Œè§¦å‘ä¸Šä¸‹æ–‡åˆ‡æ¢ */
+        /* Èç¹ûĞèÒª£¬´¥·¢ÉÏÏÂÎÄÇĞ»» */
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 }

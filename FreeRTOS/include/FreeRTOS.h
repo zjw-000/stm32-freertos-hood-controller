@@ -66,7 +66,7 @@
 
     1 tab == 4 spaces!
 */
-#include <string.h>		/*é˜²æ­¢memsetå‡½æ•°æŠ¥é”™ï¼ŒåŠ ä¸Šè¯¥å¤´æ–‡ä»¶--ä¸ç”˜å¿ƒçš„å’¸é±¼æ³¨*/
+#include <string.h>		/*·ÀÖ¹memsetº¯Êı±¨´í£¬¼ÓÉÏ¸ÃÍ·ÎÄ¼ş--²»¸ÊĞÄµÄÏÌÓã×¢*/
 #ifndef INC_FREERTOS_H
 #define INC_FREERTOS_H
 

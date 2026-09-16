@@ -3,27 +3,27 @@
 #include "sys.h"
 
 /***********************
-é¡¹ç›®åï¼šç”µæœºé©±åŠ¨å¤´æ–‡ä»¶
-ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
-é—²é±¼å·ï¼štb43915564
-ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
-é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ÏîÄ¿Ãû£ºµç»úÇı¶¯Í·ÎÄ¼ş
+×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
+ÏĞÓãºÅ£ºtb43915564
+ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
 ************************/
 
 
 #include "gpiox.h"
 
-/*æ‰©å±•ä½œç”¨åŸŸ*/
-extern volatile float speed;                /* å®é™…è½¬é€Ÿ */
-extern volatile int overflow;               /* ç¼–ç å™¨æº¢å‡ºè®¡æ•°å™¨ */
+/*À©Õ¹×÷ÓÃÓò*/
+extern volatile float speed;                /* Êµ¼Ê×ªËÙ */
+extern volatile int overflow;               /* ±àÂëÆ÷Òç³ö¼ÆÊıÆ÷ */
 
-/*ç”µæœºè½¬å‘æšä¸¾ç±»å‹*/
+/*µç»ú×ªÏòÃ¶¾ÙÀàĞÍ*/
 typedef enum{
 	stright=0,
 	invert
 }direction;
 
-/*********å‡½æ•°å£°æ˜*************************/
+/*********º¯ÊıÉùÃ÷*************************/
 void io_set(gpioled port,u16 pin,GPIOMode_TypeDef mode);
 void TIM1_dead_pwm_init(u16 arr,u16 psc,u16 ccr,u16 dtg);
 void motor_stop(void);
@@ -37,6 +37,6 @@ u8 TIM_GetDirection(TIM_TypeDef* TIMx);
 float get_speed(int encode_value,u16 ms);
 void motor_pwm_set(float para);
 void motor_init(void);
-/**********å‡½æ•°å£°æ˜**************************/
+/**********º¯ÊıÉùÃ÷**************************/
 
 #endif

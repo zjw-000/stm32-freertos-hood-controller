@@ -1,66 +1,66 @@
 /***********************
-é¡¹ç›®åï¼šæ¶²æ™¶å±é©±åŠ¨å¤´æ–‡ä»¶
-ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
-é—²é±¼å·ï¼štb43915564
-ä¿®æ”¹æ—¥æœŸï¼š2026/2/1	
-é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ÏîÄ¿Ãû£ºÒº¾§ÆÁÇý¶¯Í·ÎÄ¼þ
+×÷Õß£º²»¸ÊÐÄµÄÏÌÓã--ÏÐÓã/²»´î(414192836)--Ð¡ºìÊé
+ÏÐÓãºÅ£ºtb43915564
+ÐÞ¸ÄÈÕÆÚ£º2026/2/1	
+ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎðµ¹Âô£¡
 ************************/	
 #ifndef __LCD_H
 #define __LCD_H		
 #include "sys.h"	 
 #include "stdlib.h"
 
-//LCDä¸»è¦å‚æ•°
+//LCDÖ÷Òª²ÎÊý
 typedef struct  
 {										    
-	u16 width;			//LCD å®½åº¦
-	u16 height;			//LCD é«˜åº¦
+	u16 width;			//LCD ¿í¶È
+	u16 height;			//LCD ¸ß¶È
 	u16 id;				//LCD ID
-	u8  dir;			//æ¨ªç«–å±æŽ§åˆ¶ï¼Œ0:ç«–å±ï¼Œ1:æ¨ªå±	
-	u16	 wramcmd;		//å¼€å§‹å†™gramæŒ‡ä»¤
-	u16  setxcmd;		//è®¾ç½®xåæ ‡æŒ‡ä»¤
-	u16  setycmd;		//è®¾ç½®yåæ ‡æŒ‡ä»¤	 
+	u8  dir;			//ºáÊúÆÁ¿ØÖÆ£¬0:ÊúÆÁ£¬1:ºáÆÁ	
+	u16	 wramcmd;		//¿ªÊ¼Ð´gramÖ¸Áî
+	u16  setxcmd;		//ÉèÖÃx×ø±êÖ¸Áî
+	u16  setycmd;		//ÉèÖÃy×ø±êÖ¸Áî	 
 }_lcd_dev; 	
 
-//LCDå‚æ•°
-extern _lcd_dev lcddev;	//ç®¡ç†LCDé‡è¦å‚æ•°
-/////////////////////////////////////ç”¨æˆ·é…ç½®åŒº///////////////////////////////////	 
-#define USE_HORIZONTAL  	 0 //å®šä¹‰æ¶²æ™¶å±é¡ºæ—¶é’ˆæ—‹è½¬æ–¹å‘ 	0-0åº¦æ—‹è½¬,1-90åº¦æ—‹è½¬,2-180åº¦æ—‹è½¬,3-270åº¦æ—‹è½¬
+//LCD²ÎÊý
+extern _lcd_dev lcddev;	//¹ÜÀíLCDÖØÒª²ÎÊý
+/////////////////////////////////////ÓÃ»§ÅäÖÃÇø///////////////////////////////////	 
+#define USE_HORIZONTAL  	 0 //¶¨ÒåÒº¾§ÆÁË³Ê±ÕëÐý×ª·½Ïò 	0-0¶ÈÐý×ª,1-90¶ÈÐý×ª,2-180¶ÈÐý×ª,3-270¶ÈÐý×ª
 
 //////////////////////////////////////////////////////////////////////////////////	  
-//å®šä¹‰LCDçš„å°ºå¯¸
+//¶¨ÒåLCDµÄ³ß´ç
 #define LCD_W 128
 #define LCD_H 160
 
-//TFTLCDéƒ¨åˆ†éœ€è¦è®¾ç½®çš„å‡½æ•°		   
-extern u16  POINT_COLOR;//é»˜è®¤ç”»ç¬”é¢œè‰²    
-extern u16  BACK_COLOR; //èƒŒæ™¯é¢œè‰².é»˜è®¤ä¸ºç™½è‰²
+//TFTLCD²¿·ÖÐèÒªÉèÖÃµÄº¯Êý		   
+extern u16  POINT_COLOR;//Ä¬ÈÏ»­±ÊÑÕÉ«    
+extern u16  BACK_COLOR; //±³¾°ÑÕÉ«.Ä¬ÈÏÎª°×É«
 
 ////////////////////////////////////////////////////////////////////
-//-----------------LCDç«¯å£å®šä¹‰---------------- 
-#define GPIO_TYPE  GPIOB  //GPIOç»„ç±»åž‹
-#define LED      6        //èƒŒå…‰å¼•è„š            PB6
-#define LCD_CS   9       //ç‰‡é€‰å¼•è„š            PB9
-#define LCD_RS   7       //å¯„å­˜å™¨/æ•°æ®é€‰æ‹©å¼•è„š PB7 
-#define LCD_RST  8       //å¤ä½å¼•è„š            PB8
+//-----------------LCD¶Ë¿Ú¶¨Òå---------------- 
+#define GPIO_TYPE  GPIOB  //GPIO×éÀàÐÍ
+#define LED      6        //±³¹âÒý½Å            PB6
+#define LCD_CS   9       //Æ¬Ñ¡Òý½Å            PB9
+#define LCD_RS   7       //¼Ä´æÆ÷/Êý¾ÝÑ¡ÔñÒý½Å PB7 
+#define LCD_RST  8       //¸´Î»Òý½Å            PB8
 
 
-//QDtechå…¨ç³»åˆ—æ¨¡å—é‡‡ç”¨äº†å¯æŽ§åˆ¶èƒŒå…‰è®¾è®¡,ç”¨æˆ·ä¹Ÿå¯ä»¥æŽ¥PWMè°ƒèŠ‚èƒŒå…‰äº®åº¦
-#define	LCD_LED PBout(LED) //LCDèƒŒå…‰    		 PB6
-//å¦‚æžœä½¿ç”¨å®˜æ–¹åº“å‡½æ•°æ“ä½œæ‰€æœ‰åº•å±‚ï¼Œé€Ÿåº¦å°†ä¼šä¸‹é™åˆ°14å¸§æ¯ç§’ï¼Œæ•…åœ¨è¿™é‡Œæˆ‘ä»¬æŽ¨èé‡‡ç”¨
-//ç›´æŽ¥IOæ“ä½œç›´æŽ¥æ“ä½œå¯„å­˜å™¨æ¥æ“ä½œIOï¼Œè¿™æ ·åˆ·å±é€ŸçŽ‡å¯ä»¥è¾¾åˆ°28å¸§æ¯ç§’ï¼ 
+//QDtechÈ«ÏµÁÐÄ£¿é²ÉÓÃÁË¿É¿ØÖÆ±³¹âÉè¼Æ,ÓÃ»§Ò²¿ÉÒÔ½ÓPWMµ÷½Ú±³¹âÁÁ¶È
+#define	LCD_LED PBout(LED) //LCD±³¹â    		 PB6
+//Èç¹ûÊ¹ÓÃ¹Ù·½¿âº¯Êý²Ù×÷ËùÓÐµ×²ã£¬ËÙ¶È½«»áÏÂ½µµ½14Ö¡Ã¿Ãë£¬¹ÊÔÚÕâÀïÎÒÃÇÍÆ¼ö²ÉÓÃ
+//Ö±½ÓIO²Ù×÷Ö±½Ó²Ù×÷¼Ä´æÆ÷À´²Ù×÷IO£¬ÕâÑùË¢ÆÁËÙÂÊ¿ÉÒÔ´ïµ½28Ö¡Ã¿Ãë£¡ 
 
-//GPIOç½®ä½æ“ä½œï¼ˆé«˜ï¼‰ï¼š
-#define	LCD_CS_SET  GPIO_TYPE->BSHR=1<<LCD_CS    //ç‰‡é€‰ç«¯å£  	
-#define	LCD_RS_SET	GPIO_TYPE->BSHR=1<<LCD_RS    //æ•°æ®/å‘½ä»¤  	  
-#define	LCD_RST_SET	GPIO_TYPE->BSHR=1<<LCD_RST   //å¤ä½			  
+//GPIOÖÃÎ»²Ù×÷£¨¸ß£©£º
+#define	LCD_CS_SET  GPIO_TYPE->BSHR=1<<LCD_CS    //Æ¬Ñ¡¶Ë¿Ú  	
+#define	LCD_RS_SET	GPIO_TYPE->BSHR=1<<LCD_RS    //Êý¾Ý/ÃüÁî  	  
+#define	LCD_RST_SET	GPIO_TYPE->BSHR=1<<LCD_RST   //¸´Î»			  
 
-//GPIOç½®ä½æ“ä½œï¼ˆä½Žï¼‰ï¼š						    
-#define	LCD_CS_CLR  GPIO_TYPE->BCR=1<<LCD_CS     //ç‰‡é€‰ç«¯å£  	
-#define	LCD_RS_CLR	GPIO_TYPE->BCR=1<<LCD_RS     //æ•°æ®/å‘½ä»¤  	 
-#define	LCD_RST_CLR	GPIO_TYPE->BCR=1<<LCD_RST    //å¤ä½
+//GPIOÖÃÎ»²Ù×÷£¨µÍ£©£º						    
+#define	LCD_CS_CLR  GPIO_TYPE->BCR=1<<LCD_CS     //Æ¬Ñ¡¶Ë¿Ú  	
+#define	LCD_RS_CLR	GPIO_TYPE->BCR=1<<LCD_RS     //Êý¾Ý/ÃüÁî  	 
+#define	LCD_RST_CLR	GPIO_TYPE->BCR=1<<LCD_RST    //¸´Î»
 
-//ç”»ç¬”é¢œè‰²
+//»­±ÊÑÕÉ«
 #define WHITE       0xFFFF
 #define BLACK      	0x0000	  
 #define BLUE       	0x001F  
@@ -72,35 +72,35 @@ extern u16  BACK_COLOR; //èƒŒæ™¯é¢œè‰².é»˜è®¤ä¸ºç™½è‰²
 #define GREEN       0x07E0
 #define CYAN        0x7FFF
 #define YELLOW      0xFFE0
-#define BROWN 			0XBC40 //æ£•è‰²
-#define BRRED 			0XFC07 //æ£•çº¢è‰²
-#define GRAY  			0X8430 //ç°è‰²
-//GUIé¢œè‰²
+#define BROWN 			0XBC40 //×ØÉ«
+#define BRRED 			0XFC07 //×ØºìÉ«
+#define GRAY  			0X8430 //»ÒÉ«
+//GUIÑÕÉ«
 
-#define DARKBLUE      	 0X01CF	//æ·±è“è‰²
-#define LIGHTBLUE      	 0X7D7C	//æµ…è“è‰²  
-#define GRAYBLUE       	 0X5458 //ç°è“è‰²
-//ä»¥ä¸Šé¢œè‰²ä¸ºPANELé¢æ¿é¢œè‰² 
+#define DARKBLUE      	 0X01CF	//ÉîÀ¶É«
+#define LIGHTBLUE      	 0X7D7C	//Ç³À¶É«  
+#define GRAYBLUE       	 0X5458 //»ÒÀ¶É«
+//ÒÔÉÏÑÕÉ«ÎªPANELÃæ°åÑÕÉ« 
  
-#define LIGHTGREEN     	0X841F //æµ…ç»¿è‰²
-#define LIGHTGRAY     0XEF5B //æµ…ç°è‰²(PANNEL)
-#define LGRAY 			 		0XC618 //æµ…ç°è‰²(PANNEL),çª—ä½“èƒŒæ™¯è‰²
+#define LIGHTGREEN     	0X841F //Ç³ÂÌÉ«
+#define LIGHTGRAY     0XEF5B //Ç³»ÒÉ«(PANNEL)
+#define LGRAY 			 		0XC618 //Ç³»ÒÉ«(PANNEL),´°Ìå±³¾°É«
 
-#define LGRAYBLUE      	0XA651 //æµ…ç°è“è‰²(ä¸­é—´å±‚é¢œè‰²)
-#define LBBLUE          0X2B12 //æµ…æ£•è“è‰²(é€‰æ‹©æ¡ç›®çš„åè‰²)
+#define LGRAYBLUE      	0XA651 //Ç³»ÒÀ¶É«(ÖÐ¼ä²ãÑÕÉ«)
+#define LBBLUE          0X2B12 //Ç³×ØÀ¶É«(Ñ¡ÔñÌõÄ¿µÄ·´É«)
 	    															  
 void LCD_Init(void);
 void LCD_DisplayOn(void);
 void LCD_DisplayOff(void);
 void LCD_Clear(u16 Color);	 
 void LCD_SetCursor(u16 Xpos, u16 Ypos);
-void LCD_DrawPoint(u16 x,u16 y);//ç”»ç‚¹
-u16  LCD_ReadPoint(u16 x,u16 y); //è¯»ç‚¹
+void LCD_DrawPoint(u16 x,u16 y);//»­µã
+u16  LCD_ReadPoint(u16 x,u16 y); //¶Áµã
 void LCD_DrawLine(u16 x1, u16 y1, u16 x2, u16 y2);
 void LCD_DrawRectangle(u16 x1, u16 y1, u16 x2, u16 y2);		   
 void LCD_SetWindows(u16 xStar, u16 yStar,u16 xEnd,u16 yEnd);
 
-u16 LCD_RD_DATA(void);//è¯»å–LCDæ•°æ®									    
+u16 LCD_RD_DATA(void);//¶ÁÈ¡LCDÊý¾Ý									    
 void LCD_WriteReg(u8 LCD_Reg, u16 LCD_RegValue);
 void LCD_WR_DATA(u8 data);
 u16 LCD_ReadReg(u8 LCD_Reg);
@@ -112,10 +112,10 @@ void LCD_SetParam(void);
 void Lcd_WriteData_16Bit(u16 Data);
 void LCD_direction(u8 direction );
 
-//å¦‚æžœæ„Ÿè§‰ç”»çº¿é€Ÿåº¦ä¸å¤Ÿå¿«ï¼Œå¯ä»¥ä½¿ç”¨ä¸‹é¢çš„å®å®šä¹‰,æé«˜é€Ÿåº¦.
-//æ³¨æ„è¦åŽ»æŽ‰lcd.cé‡Œvoid LCD_WR_DATA(u16 data)è¿™ä¸ªå‡½æ•°å“¦
+//Èç¹û¸Ð¾õ»­ÏßËÙ¶È²»¹»¿ì£¬¿ÉÒÔÊ¹ÓÃÏÂÃæµÄºê¶¨Òå,Ìá¸ßËÙ¶È.
+//×¢ÒâÒªÈ¥µôlcd.cÀïvoid LCD_WR_DATA(u16 data)Õâ¸öº¯ÊýÅ¶
 /*
-#if LCD_USE8BIT_MODEL==1//ä½¿ç”¨8ä½å¹¶è¡Œæ•°æ®æ€»çº¿æ¨¡å¼
+#if LCD_USE8BIT_MODEL==1//Ê¹ÓÃ8Î»²¢ÐÐÊý¾Ý×ÜÏßÄ£Ê½
 	#define LCD_WR_DATA(data){\
 	LCD_RS_SET;\
 	LCD_CS_CLR;\
@@ -127,7 +127,7 @@ void LCD_direction(u8 direction );
 	LCD_WR_SET;\
 	LCD_CS_SET;\
 	}
-	#else//ä½¿ç”¨16ä½å¹¶è¡Œæ•°æ®æ€»çº¿æ¨¡å¼
+	#else//Ê¹ÓÃ16Î»²¢ÐÐÊý¾Ý×ÜÏßÄ£Ê½
 	#define LCD_WR_DATA(data){\
 	LCD_RS_SET;\
 	LCD_CS_CLR;\

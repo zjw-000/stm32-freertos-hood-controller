@@ -1,65 +1,65 @@
 #ifndef __PID_H
 #define __PID_H
 /***********************
-é¡¹ç›®åï¼šPIDå¤´æ–‡ä»¶
-ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
-é—²é±¼å·ï¼štb43915564
-ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
-é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ÏîÄ¿Ãû£ºPIDÍ·ÎÄ¼ş
+×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
+ÏĞÓãºÅ£ºtb43915564
+ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
 ************************/  
 #include "sys.h"
 
 /**
- * @brief PIDæ§åˆ¶å™¨ç»“æ„ä½“ï¼ˆä½ç½®å¼PIDï¼‰
+ * @brief PID¿ØÖÆÆ÷½á¹¹Ìå£¨Î»ÖÃÊ½PID£©
  */
 typedef struct {
-    float Kp;           /* æ¯”ä¾‹ç³»æ•° */
-    float Ki;           /* ç§¯åˆ†ç³»æ•° */
-    float Kd;           /* å¾®åˆ†ç³»æ•° */
+    float Kp;           /* ±ÈÀıÏµÊı */
+    float Ki;           /* »ı·ÖÏµÊı */
+    float Kd;           /* Î¢·ÖÏµÊı */
     
-    float target;       /* ç›®æ ‡å€¼ï¼ˆè®¾å®šå€¼ï¼‰ */
-    float actual;       /* å®é™…å€¼ï¼ˆåé¦ˆå€¼ï¼‰ */
+    float target;       /* Ä¿±êÖµ£¨Éè¶¨Öµ£© */
+    float actual;       /* Êµ¼ÊÖµ£¨·´À¡Öµ£© */
     
-    float error;        /* å½“å‰è¯¯å·® */
-    float last_error;   /* ä¸Šæ¬¡è¯¯å·® */
-    float integral;     /* è¯¯å·®ç§¯åˆ†ç´¯åŠ å€¼ */
+    float error;        /* µ±Ç°Îó²î */
+    float last_error;   /* ÉÏ´ÎÎó²î */
+    float integral;     /* Îó²î»ı·ÖÀÛ¼ÓÖµ */
     
-    float output;       /* PIDè¾“å‡ºå€¼ */
-    float output_max;   /* è¾“å‡ºä¸Šé™ */
-    float output_min;   /* è¾“å‡ºä¸‹é™ */
+    float output;       /* PIDÊä³öÖµ */
+    float output_max;   /* Êä³öÉÏÏŞ */
+    float output_min;   /* Êä³öÏÂÏŞ */
     
-    float integral_max; /* ç§¯åˆ†ä¸Šé™ï¼ˆé˜²æ­¢ç§¯åˆ†é¥±å’Œï¼‰ */
+    float integral_max; /* »ı·ÖÉÏÏŞ£¨·ÀÖ¹»ı·Ö±¥ºÍ£© */
 } PID_TypeDef;
 
 /**
- * @brief åˆå§‹åŒ–PIDæ§åˆ¶å™¨
- * @param pid: PIDç»“æ„ä½“æŒ‡é’ˆ
- * @param Kp: æ¯”ä¾‹ç³»æ•°
- * @param Ki: ç§¯åˆ†ç³»æ•°
- * @param Kd: å¾®åˆ†ç³»æ•°
- * @param out_max: è¾“å‡ºä¸Šé™
- * @param out_min: è¾“å‡ºä¸‹é™
+ * @brief ³õÊ¼»¯PID¿ØÖÆÆ÷
+ * @param pid: PID½á¹¹ÌåÖ¸Õë
+ * @param Kp: ±ÈÀıÏµÊı
+ * @param Ki: »ı·ÖÏµÊı
+ * @param Kd: Î¢·ÖÏµÊı
+ * @param out_max: Êä³öÉÏÏŞ
+ * @param out_min: Êä³öÏÂÏŞ
  */
 void PID_Init(PID_TypeDef *pid, float Kp, float Ki, float Kd, float out_max, float out_min);
 
 /**
- * @brief è®¾ç½®PIDç›®æ ‡å€¼
- * @param pid: PIDç»“æ„ä½“æŒ‡é’ˆ
- * @param target: ç›®æ ‡å€¼
+ * @brief ÉèÖÃPIDÄ¿±êÖµ
+ * @param pid: PID½á¹¹ÌåÖ¸Õë
+ * @param target: Ä¿±êÖµ
  */
 void PID_SetTarget(PID_TypeDef *pid, float target);
 
 /**
- * @brief PIDè®¡ç®—ï¼ˆä½ç½®å¼ï¼‰
- * @param pid: PIDç»“æ„ä½“æŒ‡é’ˆ
- * @param actual: å½“å‰å®é™…å€¼
- * @return PIDè¾“å‡ºå€¼
+ * @brief PID¼ÆËã£¨Î»ÖÃÊ½£©
+ * @param pid: PID½á¹¹ÌåÖ¸Õë
+ * @param actual: µ±Ç°Êµ¼ÊÖµ
+ * @return PIDÊä³öÖµ
  */
 float PID_Calculate(PID_TypeDef *pid, float actual);
 
 /**
- * @brief å¤ä½PIDæ§åˆ¶å™¨
- * @param pid: PIDç»“æ„ä½“æŒ‡é’ˆ
+ * @brief ¸´Î»PID¿ØÖÆÆ÷
+ * @param pid: PID½á¹¹ÌåÖ¸Õë
  */
 void PID_Reset(PID_TypeDef *pid);
 

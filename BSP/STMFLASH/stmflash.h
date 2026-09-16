@@ -2,30 +2,30 @@
 #define __STMFLASH_H__
 #include "sys.h"  
 /***********************
-é¡¹ç›®åï¼šflashé©±åŠ¨å¤´æ–‡ä»¶
-ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
-é—²é±¼å·ï¼štb43915564
-ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
-é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ÏîÄ¿Ãû£ºflashÇý¶¯Í·ÎÄ¼þ
+×÷Õß£º²»¸ÊÐÄµÄÏÌÓã--ÏÐÓã/²»´î(414192836)--Ð¡ºìÊé
+ÏÐÓãºÅ£ºtb43915564
+ÐÞ¸ÄÈÕÆÚ£º2026/2/1
+ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎðµ¹Âô£¡
 ************************/  
 
-//ç”¨æˆ·æ ¹æ®è‡ªå·±çš„éœ€è¦è®¾ç½®
-#define STM32_FLASH_SIZE 64	 			//æ‰€é€‰STM32çš„FLASHå®¹é‡å¤§å°(å•ä½ä¸ºK)ï¼Œå› ä¸ºæ˜¯STM32F103C8T6
-#define STM32_FLASH_WREN 1              //ä½¿èƒ½FLASHå†™å…¥(0ï¼Œç¦æ­¢;1ï¼Œä½¿èƒ½)
+//ÓÃ»§¸ù¾Ý×Ô¼ºµÄÐèÒªÉèÖÃ
+#define STM32_FLASH_SIZE 64	 			//ËùÑ¡STM32µÄFLASHÈÝÁ¿´óÐ¡(µ¥Î»ÎªK)£¬ÒòÎªÊÇSTM32F103C8T6
+#define STM32_FLASH_WREN 1              //Ê¹ÄÜFLASHÐ´Èë(0£¬½ûÖ¹;1£¬Ê¹ÄÜ)
 
 
-//FLASHèµ·å§‹åœ°å€
-#define STM32_FLASH_BASE 0x08000000 	//STM32 FLASHçš„èµ·å§‹åœ°å€
-//FLASHè§£é”é”®å€¼
+//FLASHÆðÊ¼µØÖ·
+#define STM32_FLASH_BASE 0x08000000 	//STM32 FLASHµÄÆðÊ¼µØÖ·
+//FLASH½âËø¼üÖµ
  
 
-u16 STMFLASH_ReadHalfWord(u32 faddr);		  //è¯»å‡ºåŠå­—  
-void STMFLASH_WriteLenByte(u32 WriteAddr,u32 DataToWrite,u16 Len);	//æŒ‡å®šåœ°å€å¼€å§‹å†™å…¥æŒ‡å®šé•¿åº¦çš„æ•°æ®
-u32 STMFLASH_ReadLenByte(u32 ReadAddr,u16 Len);						//æŒ‡å®šåœ°å€å¼€å§‹è¯»å–æŒ‡å®šé•¿åº¦æ•°æ®
-void STMFLASH_Write(u32 WriteAddr,u16 *pBuffer,u16 NumToWrite);		//ä»ŽæŒ‡å®šåœ°å€å¼€å§‹å†™å…¥æŒ‡å®šé•¿åº¦çš„æ•°æ®
-void STMFLASH_Read(u32 ReadAddr,u16 *pBuffer,u16 NumToRead);   		//ä»ŽæŒ‡å®šåœ°å€å¼€å§‹è¯»å‡ºæŒ‡å®šé•¿åº¦çš„æ•°æ®
+u16 STMFLASH_ReadHalfWord(u32 faddr);		  //¶Á³ö°ë×Ö  
+void STMFLASH_WriteLenByte(u32 WriteAddr,u32 DataToWrite,u16 Len);	//Ö¸¶¨µØÖ·¿ªÊ¼Ð´ÈëÖ¸¶¨³¤¶ÈµÄÊý¾Ý
+u32 STMFLASH_ReadLenByte(u32 ReadAddr,u16 Len);						//Ö¸¶¨µØÖ·¿ªÊ¼¶ÁÈ¡Ö¸¶¨³¤¶ÈÊý¾Ý
+void STMFLASH_Write(u32 WriteAddr,u16 *pBuffer,u16 NumToWrite);		//´ÓÖ¸¶¨µØÖ·¿ªÊ¼Ð´ÈëÖ¸¶¨³¤¶ÈµÄÊý¾Ý
+void STMFLASH_Read(u32 ReadAddr,u16 *pBuffer,u16 NumToRead);   		//´ÓÖ¸¶¨µØÖ·¿ªÊ¼¶Á³öÖ¸¶¨³¤¶ÈµÄÊý¾Ý
 
-//æµ‹è¯•å†™å…¥
+//²âÊÔÐ´Èë
 void Test_Write(u32 WriteAddr,u16 WriteData);								   
 #endif
 

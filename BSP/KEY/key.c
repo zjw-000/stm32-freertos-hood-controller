@@ -1,57 +1,57 @@
 /*
- * æŒ‰é”®é©±åŠ¨æºæ–‡ä»¶ï¼ˆçŠ¶æ€æœºæ¶ˆæŠ–ï¼‰
- * æŒ‰é”®1: PB1 - æ¨¡å¼åˆ‡æ¢ï¼ˆçŸ­æŒ‰åˆ‡æ¢æ¨¡å¼ï¼‰
- * æŒ‰é”®2: PB12 - æ¡£ä½åˆ‡æ¢/é£æœºå¼€å…³ï¼ˆçŸ­æŒ‰åˆ‡æ¢æ¡£ä½ï¼Œé•¿æŒ‰å¼€å…³é£æœºï¼‰
+ * °´¼üÇı¶¯Ô´ÎÄ¼ş£¨×´Ì¬»úÏû¶¶£©
+ * °´¼ü1: PB1 - Ä£Ê½ÇĞ»»£¨¶Ì°´ÇĞ»»Ä£Ê½£©
+ * °´¼ü2: PB12 - µµÎ»ÇĞ»»/·ç»ú¿ª¹Ø£¨¶Ì°´ÇĞ»»µµÎ»£¬³¤°´¿ª¹Ø·ç»ú£©
  * 
- * ç‰¹ç‚¹ï¼š
- * 1. éé˜»å¡çŠ¶æ€æœºæ¶ˆæŠ–ï¼Œä¸ä½¿ç”¨å»¶æ—¶å‡½æ•°
- * 2. æ”¯æŒçŸ­æŒ‰å’Œé•¿æŒ‰æ£€æµ‹
- * 3. é•¿æŒ‰æŒç»­è§¦å‘åŠŸèƒ½ï¼ˆç”¨äºèœ‚é¸£å™¨æŒç»­é¸£å«ï¼‰
+ * ÌØµã£º
+ * 1. ·Ç×èÈû×´Ì¬»úÏû¶¶£¬²»Ê¹ÓÃÑÓÊ±º¯Êı
+ * 2. Ö§³Ö¶Ì°´ºÍ³¤°´¼ì²â
+ * 3. ³¤°´³ÖĞø´¥·¢¹¦ÄÜ£¨ÓÃÓÚ·äÃùÆ÷³ÖĞøÃù½Ğ£©
  *
- * ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
- * é—²é±¼å·ï¼štb43915564
- * ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
- * é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ * ×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
+ * ÏĞÓãºÅ£ºtb43915564
+ * ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+ * ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
  */
 #include "key.h"
 
 
-/* æŒ‰é”®å®ä¾‹ */
+/* °´¼üÊµÀı */
 static Key_t g_key1;
 static Key_t g_key2;
 
-/* è¯»å–æŒ‰é”®1ç”µå¹³ */
+/* ¶ÁÈ¡°´¼ü1µçÆ½ */
 static u8 Key1_ReadPin(void)
 {
     return (KEY1_READ() == KEY_PRESSED_LEVEL) ? 1 : 0;
 }
 
-/* è¯»å–æŒ‰é”®2ç”µå¹³ */
+/* ¶ÁÈ¡°´¼ü2µçÆ½ */
 static u8 Key2_ReadPin(void)
 {
     return (KEY2_READ() == KEY_PRESSED_LEVEL) ? 1 : 0;
 }
 
 /**
- * @brief åˆå§‹åŒ–æŒ‰é”®GPIO
+ * @brief ³õÊ¼»¯°´¼üGPIO
  */
 void Key_Init(void)
 {
     
-	/*åˆå§‹åŒ–æŒ‰é”®KEY1*/
+	/*³õÊ¼»¯°´¼üKEY1*/
 	io_set(KEY1_GPIO_PORT,KEY1_GPIO_PIN,GPIO_Mode_IPU);
 	
-	/*åˆå§‹åŒ–æŒ‰é”®KEY2*/
+	/*³õÊ¼»¯°´¼üKEY2*/
 	io_set(KEY2_GPIO_PORT,KEY2_GPIO_PIN,GPIO_Mode_IPU);
     
-    /* åˆå§‹åŒ–æŒ‰é”®1ç»“æ„ä½“ */
+    /* ³õÊ¼»¯°´¼ü1½á¹¹Ìå */
     g_key1.state = KEY_STATE_IDLE;
     g_key1.pressStartTick = 0;
     g_key1.readPin = Key1_ReadPin;
     g_key1.event = KEY_EVENT_NONE;
     g_key1.longPressTriggered = 0;
     
-    /* åˆå§‹åŒ–æŒ‰é”®2ç»“æ„ä½“ */
+    /* ³õÊ¼»¯°´¼ü2½á¹¹Ìå */
     g_key2.state = KEY_STATE_IDLE;
     g_key2.pressStartTick = 0;
     g_key2.readPin = Key2_ReadPin;
@@ -60,67 +60,67 @@ void Key_Init(void)
 }
 
 /**
- * @brief æŒ‰é”®çŠ¶æ€æœºå¤„ç†ï¼ˆå•ä¸ªæŒ‰é”®ï¼‰
- * @param key: æŒ‰é”®ç»“æ„ä½“æŒ‡é’ˆ
- * @note ä½¿ç”¨xTaskGetTickCount()å®ç°ç²¾ç¡®æ—¶é—´åˆ¤æ–­ï¼Œä¸å—è°ƒç”¨å‘¨æœŸå½±å“
+ * @brief °´¼ü×´Ì¬»ú´¦Àí£¨µ¥¸ö°´¼ü£©
+ * @param key: °´¼ü½á¹¹ÌåÖ¸Õë
+ * @note Ê¹ÓÃxTaskGetTickCount()ÊµÏÖ¾«È·Ê±¼äÅĞ¶Ï£¬²»ÊÜµ÷ÓÃÖÜÆÚÓ°Ïì
  */
 static void Key_StateMachine(Key_t *key)
 {
     u8 keyPressed = key->readPin();
-    TickType_t currentTick = xTaskGetTickCount();//è®°å½•rtosæ—¶é’ŸèŠ‚æ‹æ•°ï¼Œæ¯1msè®°å½•ä¸€æ¬¡ï¼Œæ­¤æ—¶æ—¶é’ŸèŠ‚æ‹æ•°åŠ 1
+    TickType_t currentTick = xTaskGetTickCount();//¼ÇÂ¼rtosÊ±ÖÓ½ÚÅÄÊı£¬Ã¿1ms¼ÇÂ¼Ò»´Î£¬´ËÊ±Ê±ÖÓ½ÚÅÄÊı¼Ó1
     TickType_t elapsedTime;
     
     switch (key->state)
     {
         case KEY_STATE_IDLE:
-            /* ç©ºé—²çŠ¶æ€ï¼šæ£€æµ‹åˆ°æŒ‰ä¸‹åˆ™è¿›å…¥æ¶ˆæŠ–çŠ¶æ€ */
+            /* ¿ÕÏĞ×´Ì¬£º¼ì²âµ½°´ÏÂÔò½øÈëÏû¶¶×´Ì¬ */
             if (keyPressed)
             {
                 key->state = KEY_STATE_DEBOUNCE;
-                key->pressStartTick = currentTick;  /* è®°å½•æŒ‰ä¸‹å¼€å§‹æ—¶é—´ */
+                key->pressStartTick = currentTick;  /* ¼ÇÂ¼°´ÏÂ¿ªÊ¼Ê±¼ä */
             }
             break;
             
         case KEY_STATE_DEBOUNCE:
-            /* æ¶ˆæŠ–çŠ¶æ€ï¼šç­‰å¾…æ¶ˆæŠ–æ—¶é—´åˆ°è¾¾åå†æ£€æµ‹æŒ‰é”®çŠ¶æ€ */
+            /* Ïû¶¶×´Ì¬£ºµÈ´ıÏû¶¶Ê±¼äµ½´ïºóÔÙ¼ì²â°´¼ü×´Ì¬ */
             elapsedTime = currentTick - key->pressStartTick;
             if (elapsedTime >= pdMS_TO_TICKS(KEY_DEBOUNCE_TIME_MS))
             {
-                /* æ¶ˆæŠ–æ—¶é—´å·²åˆ°ï¼Œæ­¤æ—¶å†åˆ¤æ–­æŒ‰é”®çŠ¶æ€ */
+                /* Ïû¶¶Ê±¼äÒÑµ½£¬´ËÊ±ÔÙÅĞ¶Ï°´¼ü×´Ì¬ */
                 if (keyPressed)
                 {
-                    /* æ¶ˆæŠ–å®Œæˆï¼Œç¡®è®¤æŒ‰ä¸‹ */
+                    /* Ïû¶¶Íê³É£¬È·ÈÏ°´ÏÂ */
                     key->state = KEY_STATE_PRESSED;
-                    key->pressStartTick = currentTick;  /* é‡æ–°è®°å½•æ—¶é—´ï¼Œç”¨äºé•¿æŒ‰åˆ¤æ–­ */
+                    key->pressStartTick = currentTick;  /* ÖØĞÂ¼ÇÂ¼Ê±¼ä£¬ÓÃÓÚ³¤°´ÅĞ¶Ï */
                 }
                 else
                 {
-                    /* æ¶ˆæŠ–åæŒ‰é”®æœªæŒ‰ä¸‹ï¼Œè§†ä¸ºæŠ–åŠ¨ï¼Œè¿”å›ç©ºé—²çŠ¶æ€ */
+                    /* Ïû¶¶ºó°´¼üÎ´°´ÏÂ£¬ÊÓÎª¶¶¶¯£¬·µ»Ø¿ÕÏĞ×´Ì¬ */
                     key->state = KEY_STATE_IDLE;
                 }
             }
-            /* æ¶ˆæŠ–æ—¶é—´æœªåˆ°ï¼Œå¿½ç•¥å½“å‰è¯»æ•°ï¼Œç»§ç»­ç­‰å¾… */
+            /* Ïû¶¶Ê±¼äÎ´µ½£¬ºöÂÔµ±Ç°¶ÁÊı£¬¼ÌĞøµÈ´ı */
             break;
             
         case KEY_STATE_PRESSED:
-            /* æŒ‰ä¸‹ç¡®è®¤çŠ¶æ€ï¼šç­‰å¾…é•¿æŒ‰æˆ–é‡Šæ”¾ */
+            /* °´ÏÂÈ·ÈÏ×´Ì¬£ºµÈ´ı³¤°´»òÊÍ·Å */
             if (keyPressed)
             {
                 elapsedTime = currentTick - key->pressStartTick;
                 if (elapsedTime > pdMS_TO_TICKS(KEY_LONG_PRESS_TIME_MS))
                 {
-                    /* è¾¾åˆ°é•¿æŒ‰æ—¶é—´ */
+                    /* ´ïµ½³¤°´Ê±¼ä */
                     key->state = KEY_STATE_LONG_PRESS;
                     key->event = KEY_EVENT_LONG_PRESS;
-                    key->longPressTriggered = 1;	/*æ ‡è®°ä¸€æ¬¡é•¿æŒ‰*/
+                    key->longPressTriggered = 1;	/*±ê¼ÇÒ»´Î³¤°´*/
                 }
             }
             else
             {
-                /* é‡Šæ”¾æŒ‰é”® */
+                /* ÊÍ·Å°´¼ü */
                 if (!key->longPressTriggered)
                 {
-                    /* æœªè§¦å‘é•¿æŒ‰ï¼Œåˆ™ä¸ºçŸ­æŒ‰ */
+                    /* Î´´¥·¢³¤°´£¬ÔòÎª¶Ì°´ */
                     key->event = KEY_EVENT_SHORT_PRESS;
                 }
                 key->state = KEY_STATE_IDLE;
@@ -129,15 +129,15 @@ static void Key_StateMachine(Key_t *key)
             break;
             
         case KEY_STATE_LONG_PRESS:
-            /* é•¿æŒ‰çŠ¶æ€ï¼šæŒç»­æ£€æµ‹ï¼Œäº§ç”Ÿé•¿æŒ‰æŒç»­äº‹ä»¶ */
+            /* ³¤°´×´Ì¬£º³ÖĞø¼ì²â£¬²úÉú³¤°´³ÖĞøÊÂ¼ş */
             if (keyPressed)
             {
-                /* é•¿æŒ‰æŒç»­ä¸­ï¼Œæ¯ä¸ªå‘¨æœŸéƒ½äº§ç”ŸæŒç»­äº‹ä»¶ */
+                /* ³¤°´³ÖĞøÖĞ£¬Ã¿¸öÖÜÆÚ¶¼²úÉú³ÖĞøÊÂ¼ş */
                 key->event = KEY_EVENT_LONG_PRESSING;
             }
             else
             {
-                /* é‡Šæ”¾æŒ‰é”® */
+                /* ÊÍ·Å°´¼ü */
                 key->event = KEY_EVENT_RELEASE;
                 key->state = KEY_STATE_IDLE;
                 key->longPressTriggered = 0;
@@ -151,7 +151,7 @@ static void Key_StateMachine(Key_t *key)
 }
 
 /**
- * @brief æŒ‰é”®æ‰«æå‡½æ•°ï¼ˆéœ€å‘¨æœŸæ€§è°ƒç”¨ï¼‰
+ * @brief °´¼üÉ¨Ãèº¯Êı£¨ĞèÖÜÆÚĞÔµ÷ÓÃ£©
  * @note 
  */
 void Key_Scan(void)
@@ -161,8 +161,8 @@ void Key_Scan(void)
 }
 
 /**
- * @brief è·å–æŒ‰é”®1äº‹ä»¶
- * @return æŒ‰é”®äº‹ä»¶ç±»å‹
+ * @brief »ñÈ¡°´¼ü1ÊÂ¼ş
+ * @return °´¼üÊÂ¼şÀàĞÍ
  */
 KeyEvent_t Key1_GetEvent(void)
 {
@@ -170,8 +170,8 @@ KeyEvent_t Key1_GetEvent(void)
 }
 
 /**
- * @brief è·å–æŒ‰é”®2äº‹ä»¶
- * @return æŒ‰é”®äº‹ä»¶ç±»å‹
+ * @brief »ñÈ¡°´¼ü2ÊÂ¼ş
+ * @return °´¼üÊÂ¼şÀàĞÍ
  */
 KeyEvent_t Key2_GetEvent(void)
 {
@@ -179,7 +179,7 @@ KeyEvent_t Key2_GetEvent(void)
 }
 
 /**
- * @brief æ¸…é™¤æŒ‰é”®1äº‹ä»¶
+ * @brief Çå³ı°´¼ü1ÊÂ¼ş
  */
 void Key1_ClearEvent(void)
 {
@@ -187,7 +187,7 @@ void Key1_ClearEvent(void)
 }
 
 /**
- * @brief æ¸…é™¤æŒ‰é”®2äº‹ä»¶
+ * @brief Çå³ı°´¼ü2ÊÂ¼ş
  */
 void Key2_ClearEvent(void)
 {
@@ -195,8 +195,8 @@ void Key2_ClearEvent(void)
 }
 
 /**
- * @brief æ£€æŸ¥æŒ‰é”®1æ˜¯å¦å¤„äºæŒ‰ä¸‹çŠ¶æ€
- * @return 1:æŒ‰ä¸‹; 0:æœªæŒ‰ä¸‹
+ * @brief ¼ì²é°´¼ü1ÊÇ·ñ´¦ÓÚ°´ÏÂ×´Ì¬
+ * @return 1:°´ÏÂ; 0:Î´°´ÏÂ
  */
 u8 Key1_IsPressed(void)
 {
@@ -205,8 +205,8 @@ u8 Key1_IsPressed(void)
 }
 
 /**
- * @brief æ£€æŸ¥æŒ‰é”®2æ˜¯å¦å¤„äºæŒ‰ä¸‹çŠ¶æ€
- * @return 1:æŒ‰ä¸‹; 0:æœªæŒ‰ä¸‹
+ * @brief ¼ì²é°´¼ü2ÊÇ·ñ´¦ÓÚ°´ÏÂ×´Ì¬
+ * @return 1:°´ÏÂ; 0:Î´°´ÏÂ
  */
 u8 Key2_IsPressed(void)
 {

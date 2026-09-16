@@ -15,15 +15,15 @@
   *          is using in the C source code, usually in main.c. This file contains:
   *           - Configuration section that allows to select:
   *              - The device used in the target application
-  *              - To use or not the peripheralæŠ¯ drivers in application code(i.e. 
-  *                code will be based on direct access to peripheralæŠ¯ registers 
+  *              - To use or not the peripheral’s drivers in application code(i.e. 
+  *                code will be based on direct access to peripheral’s registers 
   *                rather than drivers API), this option is controlled by 
   *                "#define USE_STDPERIPH_DRIVER"
   *              - To change few application-specific parameters such as the HSE 
   *                crystal frequency
   *           - Data structures and the address mapping for all peripherals
   *           - Peripheral's registers declarations and bits definition
-  *           - Macros to access peripheralæŠ¯ registers hardware
+  *           - Macros to access peripheral’s registers hardware
   *
   ******************************************************************************
   * @attention
@@ -54,7 +54,7 @@
  extern "C" {
 #endif 
 	
-/*ä»¥ä¸‹éƒ¨åˆ†ä¸ºç¬”è€…è‡ªè¡Œç¼–å†™ï¼Œä¸»è¦æ˜¯ä¸ºäº†LCDé©±åŠ¨èƒ½é€‚é…STM32æ ‡å‡†åº“--ä¸ç”˜å¿ƒçš„å’¸é±¼æ³¨*/	 
+/*ÒÔÏÂ²¿·ÖÎª±ÊÕß×ÔĞĞ±àĞ´£¬Ö÷ÒªÊÇÎªÁËLCDÇı¶¯ÄÜÊÊÅäSTM32±ê×¼¿â--²»¸ÊĞÄµÄÏÌÓã×¢*/	 
 #define CR1  CTLR1
 #define DR   DATAR
 #define BSRR  BSHR

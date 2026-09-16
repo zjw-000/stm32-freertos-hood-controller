@@ -3,19 +3,19 @@
 #include "sys.h"
 #include "iap.h"
 /*
- * DMAé©±åŠ¨å¤´æ–‡ä»¶
- * åŸºäºFreeRTOSçš„æ²¹çƒŸæœºæ§åˆ¶ç³»ç»Ÿ
+ * DMAÇı¶¯Í·ÎÄ¼ş
+ * »ùÓÚFreeRTOSµÄÓÍÑÌ»ú¿ØÖÆÏµÍ³
  *
- * ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
- * é—²é±¼å·ï¼štb43915564
- * ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
- * é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ * ×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
+ * ÏĞÓãºÅ£ºtb43915564
+ * ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+ * ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
  */
 
-/*å‡½æ•°å£°æ˜*/
-void MYDMA_Config(DMA_Channel_TypeDef*DMA_CHx,u32 cpar,u32 cmar,u16 cndtr);//é…ç½®DMA1_CHx
+/*º¯ÊıÉùÃ÷*/
+void MYDMA_Config(DMA_Channel_TypeDef*DMA_CHx,u32 cpar,u32 cmar,u16 cndtr);//ÅäÖÃDMA1_CHx
 
-void MYDMA_Enable(DMA_Channel_TypeDef*DMA_CHx);//ä½¿èƒ½DMA1_CHx
+void MYDMA_Enable(DMA_Channel_TypeDef*DMA_CHx);//Ê¹ÄÜDMA1_CHx
 uint16_t GetReceivedDataLength(void);		   
 #endif
 
