@@ -1,54 +1,54 @@
-#ifndef __DHT11_H
-#define __DHT11_H 			   
-
-/**********************************************
-ÏîÄ¿Ãû£ºDHT11Çı¶¯
-×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
-ÏĞÓãºÅ£ºtb43915564
-ĞŞ¸ÄÈÕÆÚ£º2026/2/1
-ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
-**********************************************/     
-
-#include "sys.h"
-#include "stm32f10x.h"
-#include "delay.h"
-#include "gpiox.h"
-
-extern led_d dht;       /*À©Õ¹×÷ÓÃÓò*/
-	 
- void DHT11_Start(led_d *io);
- void DHT11_Read(led_d *io);
- u8 DHT_Read_Byte(led_d *io);
- u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io);
- void chushi(led_d *io);
- u8 readpin(led_d *io);
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#ifndef __DHT11_H
+#define __DHT11_H 			   
+
+/**********************************************
+é¡¹ç›®åï¼šDHT11é©±åŠ¨
+ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
+é—²é±¼å·ï¼štb43915564
+ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
+å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+**********************************************/     
+
+#include "sys.h"
+#include "stm32f10x.h"
+#include "delay.h"
+#include "gpiox.h"
+
+extern led_d dht;       /*æ‰©å±•ä½œç”¨åŸŸ*/
+	 
+ void DHT11_Start(led_d *io);
+ void DHT11_Read(led_d *io);
+ u8 DHT_Read_Byte(led_d *io);
+ u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io);
+ void chushi(led_d *io);
+ u8 readpin(led_d *io);
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

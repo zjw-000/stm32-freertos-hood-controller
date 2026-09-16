@@ -1,371 +1,371 @@
-/***********************
-×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
-ÏĞÓãºÅ£ºtb43915564
-ĞŞ¸ÄÈÕÆÚ£º2026/2/1
-ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
-************************/
-//=========================================µçÔ´½ÓÏß================================================//
-//     LCDÄ£¿é                CH32µ¥Æ¬»ú
-//      VCC          ½Ó        DC5V/3.3V      //µçÔ´
-//      GND          ½Ó          GND          //µçÔ´µØ
-//=======================================Òº¾§ÆÁÊı¾İÏß½ÓÏß==========================================//
-//±¾Ä£¿éÄ¬ÈÏÊı¾İ×ÜÏßÀàĞÍÎªSPI×ÜÏß
-//     LCDÄ£¿é                CH32µ¥Æ¬»ú    
-//       SDA         ½Ó          PA7         //Òº¾§ÆÁSPI×ÜÏßÊı¾İĞ´ĞÅºÅ
-//=======================================Òº¾§ÆÁ¿ØÖÆÏß½ÓÏß==========================================//
-//     LCDÄ£¿é 					      CH32µ¥Æ¬»ú 
-//       LED         ½Ó          PB6         //Òº¾§ÆÁ±³¹â¿ØÖÆĞÅºÅ£¬Èç¹û²»ĞèÒª¿ØÖÆ£¬½Ó5V»ò3.3V
-//       SCK         ½Ó          PA5         //Òº¾§ÆÁSPI×ÜÏßÊ±ÖÓĞÅºÅ
-//       A0          ½Ó          PB7         //Òº¾§ÆÁÊı¾İ/ÃüÁî¿ØÖÆĞÅºÅ
-//       RESET       ½Ó          PB8         //Òº¾§ÆÁ¸´Î»¿ØÖÆĞÅºÅ
-//       CS          ½Ó          PB9         //Òº¾§ÆÁÆ¬Ñ¡¿ØÖÆĞÅºÅ
-//=========================================´¥ÃşÆÁ´¥½ÓÏß=========================================//
-//Ä£¿é²»´ø´¥Ãş¹¦ÄÜ£¬²»ĞèÒª½øĞĞ´¥ÃşÆÁ½ÓÏß
-	
-#include "lcd.h"
-#include "stdlib.h"
-#include "sys.h"	 
-#include "spi.h"
-#include "delay.h"
-
-
-
-	   
-//¹ÜÀíLCDÖØÒª²ÎÊı
-//Ä¬ÈÏÎªÊúÆÁ
-_lcd_dev lcddev;
-
-//»­±ÊÑÕÉ«,±³¾°ÑÕÉ«
-u16 POINT_COLOR = 0x0000,BACK_COLOR = 0xFFFF;  
-u16 DeviceCode;	 
-
-/*****************************************************************************
- * @name       :void LCD_WR_REG(u8 data)
- * @date       :2018-08-09 
- * @function   :Write an 8-bit command to the LCD screen
- * @parameters :data:Command value to be written
- * @retvalue   :None
-******************************************************************************/
-void LCD_WR_REG(u8 data)
-{ 
-   LCD_CS_CLR;               // 1. µãÃû£º½ĞĞÑÆÁÄ» (CS = 0)
-   LCD_RS_CLR;	             // 2. ¹Ø¼ü£¡RS=0£ºÍ¨ÖªÆÁÄ»¡°ÌıºÃÁË£¬ÕâÊÇÃüÁî£¡¡±
-   SPI_WriteByte(SPI1,data); // 3. °Ñ 8 Î»µÄÖ¸Áî·¢¹ıÈ¥
-   LCD_CS_SET;	             // 4. µãÃû½áÊø (CS = 1)
-}
-
-/*****************************************************************************
- * @name       :void LCD_WR_DATA(u8 data)
- * @date       :2018-08-09 
- * @function   :Write an 8-bit data to the LCD screen
- * @parameters :data:data value to be written
- * @retvalue   :None
-******************************************************************************/
-void LCD_WR_DATA(u8 data)
-{
-   LCD_CS_CLR;               // 1. µãÃû½ĞĞÑ
-   LCD_RS_SET;               // 2. ¹Ø¼ü£¡RS=1£ºÍ¨ÖªÆÁÄ»¡°ÕâÊÇÑÕÉ«Êı¾İ£¬¸øÎÒÍ¿ÉÏÈ¥£¡¡±
-   SPI_WriteByte(SPI1,data); // 3. °Ñ 8 Î»ÑÕÉ«·¢¹ıÈ¥
-   LCD_CS_SET;	             // 4. µãÃû½áÊø
-}
-
-/*****************************************************************************
- * @name       :void LCD_WriteReg(u8 LCD_Reg, u16 LCD_RegValue)
- * @date       :2018-08-09 
- * @function   :Write data into registers
- * @parameters :LCD_Reg:Register address
-                LCD_RegValue:Data to be written
- * @retvalue   :None
-******************************************************************************/
-void LCD_WriteReg(u8 LCD_Reg, u16 LCD_RegValue)
-{	
-	LCD_WR_REG(LCD_Reg);  
-	LCD_WR_DATA(LCD_RegValue);	    		 
-}	   
-
-/*****************************************************************************
- * @name       :void LCD_WriteRAM_Prepare(void)
- * @date       :2018-08-09 
- * @function   :Write GRAM
- * @parameters :None
- * @retvalue   :None
-******************************************************************************/	 
-void LCD_WriteRAM_Prepare(void)
-{
-	LCD_WR_REG(lcddev.wramcmd);
-}	 
-
-/*****************************************************************************
- * @name       :void Lcd_WriteData_16Bit(u16 Data)
- * @date       :2018-08-09 
- * @function   :Write an 16-bit command to the LCD screen
- * @parameters :Data:Data to be written
- * @retvalue   :None
-******************************************************************************/	 
-void Lcd_WriteData_16Bit(u16 Data)
-{	
-   LCD_CS_CLR;
-   LCD_RS_SET;                  // ÊÇÑÕÉ«Êı¾İ
-   SPI_WriteByte(SPI1,Data>>8); // ÏÈ·¢¸ß8Î»ÑÕÉ« (±ÈÈçºìºÍÂÌµÄÒ»²¿·Ö)
-   SPI_WriteByte(SPI1,Data);    // ÔÙ·¢µÍ8Î»ÑÕÉ« (±ÈÈçÂÌµÄÊ£ÏÂ²¿·ÖºÍÀ¶)
-   LCD_CS_SET;
-}
-
-/*****************************************************************************
- * @name       :void LCD_DrawPoint(u16 x,u16 y)
- * @date       :2018-08-09 
- * @function   :Write a pixel data at a specified location
- * @parameters :x:the x coordinate of the pixel
-                y:the y coordinate of the pixel
- * @retvalue   :None
-******************************************************************************/	
-void LCD_DrawPoint(u16 x,u16 y)
-{
-	LCD_SetCursor(x,y);//ÉèÖÃ¹â±êÎ»ÖÃ 
-	Lcd_WriteData_16Bit(POINT_COLOR); 
-}
-
-/*****************************************************************************
- * @name       :void LCD_Clear(u16 Color)
- * @date       :2018-08-09 
- * @function   :Full screen filled LCD screen
- * @parameters :color:Filled color
- * @retvalue   :None
-******************************************************************************/	
-void LCD_Clear(u16 Color)
-{
-  unsigned int i,m;  
-	LCD_SetWindows(0,0,lcddev.width-1,lcddev.height-1);   
-	LCD_CS_CLR;
-	LCD_RS_SET;
-	for(i=0;i<lcddev.height;i++)
-	{
-    for(m=0;m<lcddev.width;m++)
-    {	
-			Lcd_WriteData_16Bit(Color);
-		}
-	}
-	 LCD_CS_SET;
-} 
-
-/*****************************************************************************
- * @name       :void LCD_GPIOInit(void)
- * @date       :2018-08-09 
- * @function   :Initialization LCD screen GPIO
- * @parameters :None
- * @retvalue   :None
-******************************************************************************/	
-void LCD_GPIOInit(void)
-{
-	GPIO_InitTypeDef  GPIO_InitStructure;	      
-	RCC_APB2PeriphClockCmd( RCC_APB2Periph_GPIOB ,ENABLE);	//Ê¹ÄÜGPIOBÊ±ÖÓ
-	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6| GPIO_Pin_7| GPIO_Pin_8|GPIO_Pin_9; //GPIOB6,7,8,9
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;   //ÍÆÍìÊä³ö
-	GPIO_Init(GPIOB, &GPIO_InitStructure);//³õÊ¼»¯
-}
-
-/*****************************************************************************
- * @name       :void LCD_RESET(void)
- * @date       :2018-08-09 
- * @function   :Reset LCD screen
- * @parameters :None
- * @retvalue   :None
-******************************************************************************/	
-void LCD_RESET(void)
-{
-	LCD_RST_CLR;
-	delay_ms(100);	
-	LCD_RST_SET;
-	delay_ms(50);
-}
-
-/*****************************************************************************
- * @name       :void LCD_RESET(void)
- * @date       :2018-08-09 
- * @function   :Initialization LCD screen
- * @parameters :None
- * @retvalue   :None
-******************************************************************************/	 	 
-void LCD_Init(void)
-{  
-	SPI1_Init(); //Ó²¼şSPI1³õÊ¼»¯
-	LCD_GPIOInit();//LCD GPIO³õÊ¼»¯										 
- 	LCD_RESET(); //LCD ¸´Î»
-//************* ST7735S³õÊ¼»¯**********//	
-	LCD_WR_REG(0x11);//Sleep exit 
-	delay_ms(120);	
-	//ST7735R Frame Rate
-	LCD_WR_REG(0xB1); 
-	LCD_WR_DATA(0x01); 
-	LCD_WR_DATA(0x2C); 
-	LCD_WR_DATA(0x2D); 
-	LCD_WR_REG(0xB2); 
-	LCD_WR_DATA(0x01); 
-	LCD_WR_DATA(0x2C); 
-	LCD_WR_DATA(0x2D); 
-	LCD_WR_REG(0xB3); 
-	LCD_WR_DATA(0x01); 
-	LCD_WR_DATA(0x2C); 
-	LCD_WR_DATA(0x2D); 
-	LCD_WR_DATA(0x01); 
-	LCD_WR_DATA(0x2C); 
-	LCD_WR_DATA(0x2D); 	
-	LCD_WR_REG(0xB4); //Column inversion 
-	LCD_WR_DATA(0x07); 	
-	//ST7735R Power Sequence
-	LCD_WR_REG(0xC0); 
-	LCD_WR_DATA(0xA2); 
-	LCD_WR_DATA(0x02); 
-	LCD_WR_DATA(0x84); 
-	LCD_WR_REG(0xC1); 
-	LCD_WR_DATA(0xC5); 
-	LCD_WR_REG(0xC2); 
-	LCD_WR_DATA(0x0A); 
-	LCD_WR_DATA(0x00); 
-	LCD_WR_REG(0xC3); 
-	LCD_WR_DATA(0x8A); 
-	LCD_WR_DATA(0x2A); 
-	LCD_WR_REG(0xC4); 
-	LCD_WR_DATA(0x8A); 
-	LCD_WR_DATA(0xEE); 
-	LCD_WR_REG(0xC5); //VCOM 
-	LCD_WR_DATA(0x0E); 	
-	LCD_WR_REG(0x36); //MX, MY, RGB mode 
-	LCD_WR_DATA(0xC0); 
-	//ST7735R Gamma Sequence
-	LCD_WR_REG(0xe0); 
-	LCD_WR_DATA(0x0f); 
-	LCD_WR_DATA(0x1a); 
-	LCD_WR_DATA(0x0f); 
-	LCD_WR_DATA(0x18); 
-	LCD_WR_DATA(0x2f); 
-	LCD_WR_DATA(0x28); 
-	LCD_WR_DATA(0x20); 
-	LCD_WR_DATA(0x22); 
-	LCD_WR_DATA(0x1f); 
-	LCD_WR_DATA(0x1b); 
-	LCD_WR_DATA(0x23); 
-	LCD_WR_DATA(0x37); 
-	LCD_WR_DATA(0x00); 	
-	LCD_WR_DATA(0x07); 
-	LCD_WR_DATA(0x02); 
-	LCD_WR_DATA(0x10); 
-	LCD_WR_REG(0xe1); 
-	LCD_WR_DATA(0x0f); 
-	LCD_WR_DATA(0x1b); 
-	LCD_WR_DATA(0x0f); 
-	LCD_WR_DATA(0x17); 
-	LCD_WR_DATA(0x33); 
-	LCD_WR_DATA(0x2c); 
-	LCD_WR_DATA(0x29); 
-	LCD_WR_DATA(0x2e); 
-	LCD_WR_DATA(0x30); 
-	LCD_WR_DATA(0x30); 
-	LCD_WR_DATA(0x39); 
-	LCD_WR_DATA(0x3f); 
-	LCD_WR_DATA(0x00); 
-	LCD_WR_DATA(0x07); 
-	LCD_WR_DATA(0x03); 
-	LCD_WR_DATA(0x10);  	
-	LCD_WR_REG(0x2a);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x7f);
-	LCD_WR_REG(0x2b);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(0x9f);
-	LCD_WR_REG(0xF0); //Enable test command  
-	LCD_WR_DATA(0x01); 
-	LCD_WR_REG(0xF6); //Disable ram power save mode 
-	LCD_WR_DATA(0x00); 	
-	LCD_WR_REG(0x3A); //65k mode 
-	LCD_WR_DATA(0x05); 
-	LCD_WR_REG(0x29);//Display on	 	
-  LCD_direction(USE_HORIZONTAL);//ÉèÖÃLCDÏÔÊ¾·½Ïò
-	LCD_LED=1;//µãÁÁ±³¹â	 
-	LCD_Clear(WHITE);//ÇåÈ«ÆÁ°×É«
-}
- 
-/*****************************************************************************
- * @name       :void LCD_SetWindows(u16 xStar, u16 yStar,u16 xEnd,u16 yEnd)
- * @date       :2018-08-09 
- * @function   :Setting LCD display window
- * @parameters :xStar:the bebinning x coordinate of the LCD display window
-								yStar:the bebinning y coordinate of the LCD display window
-								xEnd:the endning x coordinate of the LCD display window
-								yEnd:the endning y coordinate of the LCD display window
- * @retvalue   :None
-******************************************************************************/ 
-void LCD_SetWindows(u16 xStar, u16 yStar,u16 xEnd,u16 yEnd)
-{	
-	LCD_WR_REG(lcddev.setxcmd);	
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(xStar);		
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(xEnd);
-
-	LCD_WR_REG(lcddev.setycmd);	
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(yStar);		
-	LCD_WR_DATA(0x00);
-	LCD_WR_DATA(yEnd);
-
-	LCD_WriteRAM_Prepare();	//¿ªÊ¼Ğ´ÈëGRAM			
-}   
-
-/*****************************************************************************
- * @name       :void LCD_SetCursor(u16 Xpos, u16 Ypos)
- * @date       :2018-08-09 
- * @function   :Set coordinate value
- * @parameters :Xpos:the  x coordinate of the pixel
-								Ypos:the  y coordinate of the pixel
- * @retvalue   :None
-******************************************************************************/ 
-void LCD_SetCursor(u16 Xpos, u16 Ypos)
-{	  	    			
-	LCD_SetWindows(Xpos,Ypos,Xpos,Ypos);	
-} 
-
-/*****************************************************************************
- * @name       :void LCD_direction(u8 direction)
- * @date       :2018-08-09 
- * @function   :Setting the display direction of LCD screen
- * @parameters :direction:0-0 degree
-                          1-90 degree
-													2-180 degree
-													3-270 degree
- * @retvalue   :None
-******************************************************************************/ 
-void LCD_direction(u8 direction)
-{ 
-			lcddev.setxcmd=0x2A;
-			lcddev.setycmd=0x2B;
-			lcddev.wramcmd=0x2C;
-	switch(direction){		  
-		case 0:						 	 		
-			lcddev.width=LCD_W;
-			lcddev.height=LCD_H;		
-			LCD_WriteReg(0x36,(0<<3)|(1<<6)|(1<<7));//BGR==1,MY==0,MX==0,MV==0
-		break;
-		case 1:
-			lcddev.width=LCD_H;
-			lcddev.height=LCD_W;
-			LCD_WriteReg(0x36,(0<<3)|(1<<7)|(1<<5));//BGR==1,MY==1,MX==0,MV==1
-		break;
-		case 2:						 	 		
-			lcddev.width=LCD_W;
-			lcddev.height=LCD_H;	
-			LCD_WriteReg(0x36,(0<<3)|(0<<6)|(0<<7));//BGR==1,MY==0,MX==0,MV==0
-		break;
-		case 3:
-			lcddev.width=LCD_H;
-			lcddev.height=LCD_W;
-			LCD_WriteReg(0x36,(0<<3)|(0<<7)|(1<<6)|(1<<5));//BGR==1,MY==1,MX==0,MV==1
-		break;	
-		default:break;
-	}		
-}	 
+/***********************
+ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
+é—²é±¼å·ï¼štb43915564
+ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
+é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+************************/
+//=========================================ç”µæºæ¥çº¿================================================//
+//     LCDæ¨¡å—                CH32å•ç‰‡æœº
+//      VCC          æ¥        DC5V/3.3V      //ç”µæº
+//      GND          æ¥          GND          //ç”µæºåœ°
+//=======================================æ¶²æ™¶å±æ•°æ®çº¿æ¥çº¿==========================================//
+//æœ¬æ¨¡å—é»˜è®¤æ•°æ®æ€»çº¿ç±»å‹ä¸ºSPIæ€»çº¿
+//     LCDæ¨¡å—                CH32å•ç‰‡æœº    
+//       SDA         æ¥          PA7         //æ¶²æ™¶å±SPIæ€»çº¿æ•°æ®å†™ä¿¡å·
+//=======================================æ¶²æ™¶å±æ§åˆ¶çº¿æ¥çº¿==========================================//
+//     LCDæ¨¡å— 					      CH32å•ç‰‡æœº 
+//       LED         æ¥          PB6         //æ¶²æ™¶å±èƒŒå…‰æ§åˆ¶ä¿¡å·ï¼Œå¦‚æœä¸éœ€è¦æ§åˆ¶ï¼Œæ¥5Væˆ–3.3V
+//       SCK         æ¥          PA5         //æ¶²æ™¶å±SPIæ€»çº¿æ—¶é’Ÿä¿¡å·
+//       A0          æ¥          PB7         //æ¶²æ™¶å±æ•°æ®/å‘½ä»¤æ§åˆ¶ä¿¡å·
+//       RESET       æ¥          PB8         //æ¶²æ™¶å±å¤ä½æ§åˆ¶ä¿¡å·
+//       CS          æ¥          PB9         //æ¶²æ™¶å±ç‰‡é€‰æ§åˆ¶ä¿¡å·
+//=========================================è§¦æ‘¸å±è§¦æ¥çº¿=========================================//
+//æ¨¡å—ä¸å¸¦è§¦æ‘¸åŠŸèƒ½ï¼Œä¸éœ€è¦è¿›è¡Œè§¦æ‘¸å±æ¥çº¿
+	
+#include "lcd.h"
+#include "stdlib.h"
+#include "sys.h"	 
+#include "spi.h"
+#include "delay.h"
+
+
+
+	   
+//ç®¡ç†LCDé‡è¦å‚æ•°
+//é»˜è®¤ä¸ºç«–å±
+_lcd_dev lcddev;
+
+//ç”»ç¬”é¢œè‰²,èƒŒæ™¯é¢œè‰²
+u16 POINT_COLOR = 0x0000,BACK_COLOR = 0xFFFF;  
+u16 DeviceCode;	 
+
+/*****************************************************************************
+ * @name       :void LCD_WR_REG(u8 data)
+ * @date       :2018-08-09 
+ * @function   :Write an 8-bit command to the LCD screen
+ * @parameters :data:Command value to be written
+ * @retvalue   :None
+******************************************************************************/
+void LCD_WR_REG(u8 data)
+{ 
+   LCD_CS_CLR;               // 1. ç‚¹åï¼šå«é†’å±å¹• (CS = 0)
+   LCD_RS_CLR;	             // 2. å…³é”®ï¼RS=0ï¼šé€šçŸ¥å±å¹•â€œå¬å¥½äº†ï¼Œè¿™æ˜¯å‘½ä»¤ï¼â€
+   SPI_WriteByte(SPI1,data); // 3. æŠŠ 8 ä½çš„æŒ‡ä»¤å‘è¿‡å»
+   LCD_CS_SET;	             // 4. ç‚¹åç»“æŸ (CS = 1)
+}
+
+/*****************************************************************************
+ * @name       :void LCD_WR_DATA(u8 data)
+ * @date       :2018-08-09 
+ * @function   :Write an 8-bit data to the LCD screen
+ * @parameters :data:data value to be written
+ * @retvalue   :None
+******************************************************************************/
+void LCD_WR_DATA(u8 data)
+{
+   LCD_CS_CLR;               // 1. ç‚¹åå«é†’
+   LCD_RS_SET;               // 2. å…³é”®ï¼RS=1ï¼šé€šçŸ¥å±å¹•â€œè¿™æ˜¯é¢œè‰²æ•°æ®ï¼Œç»™æˆ‘æ¶‚ä¸Šå»ï¼â€
+   SPI_WriteByte(SPI1,data); // 3. æŠŠ 8 ä½é¢œè‰²å‘è¿‡å»
+   LCD_CS_SET;	             // 4. ç‚¹åç»“æŸ
+}
+
+/*****************************************************************************
+ * @name       :void LCD_WriteReg(u8 LCD_Reg, u16 LCD_RegValue)
+ * @date       :2018-08-09 
+ * @function   :Write data into registers
+ * @parameters :LCD_Reg:Register address
+                LCD_RegValue:Data to be written
+ * @retvalue   :None
+******************************************************************************/
+void LCD_WriteReg(u8 LCD_Reg, u16 LCD_RegValue)
+{	
+	LCD_WR_REG(LCD_Reg);  
+	LCD_WR_DATA(LCD_RegValue);	    		 
+}	   
+
+/*****************************************************************************
+ * @name       :void LCD_WriteRAM_Prepare(void)
+ * @date       :2018-08-09 
+ * @function   :Write GRAM
+ * @parameters :None
+ * @retvalue   :None
+******************************************************************************/	 
+void LCD_WriteRAM_Prepare(void)
+{
+	LCD_WR_REG(lcddev.wramcmd);
+}	 
+
+/*****************************************************************************
+ * @name       :void Lcd_WriteData_16Bit(u16 Data)
+ * @date       :2018-08-09 
+ * @function   :Write an 16-bit command to the LCD screen
+ * @parameters :Data:Data to be written
+ * @retvalue   :None
+******************************************************************************/	 
+void Lcd_WriteData_16Bit(u16 Data)
+{	
+   LCD_CS_CLR;
+   LCD_RS_SET;                  // æ˜¯é¢œè‰²æ•°æ®
+   SPI_WriteByte(SPI1,Data>>8); // å…ˆå‘é«˜8ä½é¢œè‰² (æ¯”å¦‚çº¢å’Œç»¿çš„ä¸€éƒ¨åˆ†)
+   SPI_WriteByte(SPI1,Data);    // å†å‘ä½8ä½é¢œè‰² (æ¯”å¦‚ç»¿çš„å‰©ä¸‹éƒ¨åˆ†å’Œè“)
+   LCD_CS_SET;
+}
+
+/*****************************************************************************
+ * @name       :void LCD_DrawPoint(u16 x,u16 y)
+ * @date       :2018-08-09 
+ * @function   :Write a pixel data at a specified location
+ * @parameters :x:the x coordinate of the pixel
+                y:the y coordinate of the pixel
+ * @retvalue   :None
+******************************************************************************/	
+void LCD_DrawPoint(u16 x,u16 y)
+{
+	LCD_SetCursor(x,y);//è®¾ç½®å…‰æ ‡ä½ç½® 
+	Lcd_WriteData_16Bit(POINT_COLOR); 
+}
+
+/*****************************************************************************
+ * @name       :void LCD_Clear(u16 Color)
+ * @date       :2018-08-09 
+ * @function   :Full screen filled LCD screen
+ * @parameters :color:Filled color
+ * @retvalue   :None
+******************************************************************************/	
+void LCD_Clear(u16 Color)
+{
+  unsigned int i,m;  
+	LCD_SetWindows(0,0,lcddev.width-1,lcddev.height-1);   
+	LCD_CS_CLR;
+	LCD_RS_SET;
+	for(i=0;i<lcddev.height;i++)
+	{
+    for(m=0;m<lcddev.width;m++)
+    {	
+			Lcd_WriteData_16Bit(Color);
+		}
+	}
+	 LCD_CS_SET;
+} 
+
+/*****************************************************************************
+ * @name       :void LCD_GPIOInit(void)
+ * @date       :2018-08-09 
+ * @function   :Initialization LCD screen GPIO
+ * @parameters :None
+ * @retvalue   :None
+******************************************************************************/	
+void LCD_GPIOInit(void)
+{
+	GPIO_InitTypeDef  GPIO_InitStructure;	      
+	RCC_APB2PeriphClockCmd( RCC_APB2Periph_GPIOB ,ENABLE);	//ä½¿èƒ½GPIOBæ—¶é’Ÿ
+	GPIO_InitStructure.GPIO_Pin = GPIO_Pin_6| GPIO_Pin_7| GPIO_Pin_8|GPIO_Pin_9; //GPIOB6,7,8,9
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;   //æ¨æŒ½è¾“å‡º
+	GPIO_Init(GPIOB, &GPIO_InitStructure);//åˆå§‹åŒ–
+}
+
+/*****************************************************************************
+ * @name       :void LCD_RESET(void)
+ * @date       :2018-08-09 
+ * @function   :Reset LCD screen
+ * @parameters :None
+ * @retvalue   :None
+******************************************************************************/	
+void LCD_RESET(void)
+{
+	LCD_RST_CLR;
+	delay_ms(100);	
+	LCD_RST_SET;
+	delay_ms(50);
+}
+
+/*****************************************************************************
+ * @name       :void LCD_RESET(void)
+ * @date       :2018-08-09 
+ * @function   :Initialization LCD screen
+ * @parameters :None
+ * @retvalue   :None
+******************************************************************************/	 	 
+void LCD_Init(void)
+{  
+	SPI1_Init(); //ç¡¬ä»¶SPI1åˆå§‹åŒ–
+	LCD_GPIOInit();//LCD GPIOåˆå§‹åŒ–										 
+ 	LCD_RESET(); //LCD å¤ä½
+//************* ST7735Såˆå§‹åŒ–**********//	
+	LCD_WR_REG(0x11);//Sleep exit 
+	delay_ms(120);	
+	//ST7735R Frame Rate
+	LCD_WR_REG(0xB1); 
+	LCD_WR_DATA(0x01); 
+	LCD_WR_DATA(0x2C); 
+	LCD_WR_DATA(0x2D); 
+	LCD_WR_REG(0xB2); 
+	LCD_WR_DATA(0x01); 
+	LCD_WR_DATA(0x2C); 
+	LCD_WR_DATA(0x2D); 
+	LCD_WR_REG(0xB3); 
+	LCD_WR_DATA(0x01); 
+	LCD_WR_DATA(0x2C); 
+	LCD_WR_DATA(0x2D); 
+	LCD_WR_DATA(0x01); 
+	LCD_WR_DATA(0x2C); 
+	LCD_WR_DATA(0x2D); 	
+	LCD_WR_REG(0xB4); //Column inversion 
+	LCD_WR_DATA(0x07); 	
+	//ST7735R Power Sequence
+	LCD_WR_REG(0xC0); 
+	LCD_WR_DATA(0xA2); 
+	LCD_WR_DATA(0x02); 
+	LCD_WR_DATA(0x84); 
+	LCD_WR_REG(0xC1); 
+	LCD_WR_DATA(0xC5); 
+	LCD_WR_REG(0xC2); 
+	LCD_WR_DATA(0x0A); 
+	LCD_WR_DATA(0x00); 
+	LCD_WR_REG(0xC3); 
+	LCD_WR_DATA(0x8A); 
+	LCD_WR_DATA(0x2A); 
+	LCD_WR_REG(0xC4); 
+	LCD_WR_DATA(0x8A); 
+	LCD_WR_DATA(0xEE); 
+	LCD_WR_REG(0xC5); //VCOM 
+	LCD_WR_DATA(0x0E); 	
+	LCD_WR_REG(0x36); //MX, MY, RGB mode 
+	LCD_WR_DATA(0xC0); 
+	//ST7735R Gamma Sequence
+	LCD_WR_REG(0xe0); 
+	LCD_WR_DATA(0x0f); 
+	LCD_WR_DATA(0x1a); 
+	LCD_WR_DATA(0x0f); 
+	LCD_WR_DATA(0x18); 
+	LCD_WR_DATA(0x2f); 
+	LCD_WR_DATA(0x28); 
+	LCD_WR_DATA(0x20); 
+	LCD_WR_DATA(0x22); 
+	LCD_WR_DATA(0x1f); 
+	LCD_WR_DATA(0x1b); 
+	LCD_WR_DATA(0x23); 
+	LCD_WR_DATA(0x37); 
+	LCD_WR_DATA(0x00); 	
+	LCD_WR_DATA(0x07); 
+	LCD_WR_DATA(0x02); 
+	LCD_WR_DATA(0x10); 
+	LCD_WR_REG(0xe1); 
+	LCD_WR_DATA(0x0f); 
+	LCD_WR_DATA(0x1b); 
+	LCD_WR_DATA(0x0f); 
+	LCD_WR_DATA(0x17); 
+	LCD_WR_DATA(0x33); 
+	LCD_WR_DATA(0x2c); 
+	LCD_WR_DATA(0x29); 
+	LCD_WR_DATA(0x2e); 
+	LCD_WR_DATA(0x30); 
+	LCD_WR_DATA(0x30); 
+	LCD_WR_DATA(0x39); 
+	LCD_WR_DATA(0x3f); 
+	LCD_WR_DATA(0x00); 
+	LCD_WR_DATA(0x07); 
+	LCD_WR_DATA(0x03); 
+	LCD_WR_DATA(0x10);  	
+	LCD_WR_REG(0x2a);
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(0x7f);
+	LCD_WR_REG(0x2b);
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(0x9f);
+	LCD_WR_REG(0xF0); //Enable test command  
+	LCD_WR_DATA(0x01); 
+	LCD_WR_REG(0xF6); //Disable ram power save mode 
+	LCD_WR_DATA(0x00); 	
+	LCD_WR_REG(0x3A); //65k mode 
+	LCD_WR_DATA(0x05); 
+	LCD_WR_REG(0x29);//Display on	 	
+  LCD_direction(USE_HORIZONTAL);//è®¾ç½®LCDæ˜¾ç¤ºæ–¹å‘
+	LCD_LED=1;//ç‚¹äº®èƒŒå…‰	 
+	LCD_Clear(WHITE);//æ¸…å…¨å±ç™½è‰²
+}
+ 
+/*****************************************************************************
+ * @name       :void LCD_SetWindows(u16 xStar, u16 yStar,u16 xEnd,u16 yEnd)
+ * @date       :2018-08-09 
+ * @function   :Setting LCD display window
+ * @parameters :xStar:the bebinning x coordinate of the LCD display window
+								yStar:the bebinning y coordinate of the LCD display window
+								xEnd:the endning x coordinate of the LCD display window
+								yEnd:the endning y coordinate of the LCD display window
+ * @retvalue   :None
+******************************************************************************/ 
+void LCD_SetWindows(u16 xStar, u16 yStar,u16 xEnd,u16 yEnd)
+{	
+	LCD_WR_REG(lcddev.setxcmd);	
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(xStar);		
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(xEnd);
+
+	LCD_WR_REG(lcddev.setycmd);	
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(yStar);		
+	LCD_WR_DATA(0x00);
+	LCD_WR_DATA(yEnd);
+
+	LCD_WriteRAM_Prepare();	//å¼€å§‹å†™å…¥GRAM			
+}   
+
+/*****************************************************************************
+ * @name       :void LCD_SetCursor(u16 Xpos, u16 Ypos)
+ * @date       :2018-08-09 
+ * @function   :Set coordinate value
+ * @parameters :Xpos:the  x coordinate of the pixel
+								Ypos:the  y coordinate of the pixel
+ * @retvalue   :None
+******************************************************************************/ 
+void LCD_SetCursor(u16 Xpos, u16 Ypos)
+{	  	    			
+	LCD_SetWindows(Xpos,Ypos,Xpos,Ypos);	
+} 
+
+/*****************************************************************************
+ * @name       :void LCD_direction(u8 direction)
+ * @date       :2018-08-09 
+ * @function   :Setting the display direction of LCD screen
+ * @parameters :direction:0-0 degree
+                          1-90 degree
+													2-180 degree
+													3-270 degree
+ * @retvalue   :None
+******************************************************************************/ 
+void LCD_direction(u8 direction)
+{ 
+			lcddev.setxcmd=0x2A;
+			lcddev.setycmd=0x2B;
+			lcddev.wramcmd=0x2C;
+	switch(direction){		  
+		case 0:						 	 		
+			lcddev.width=LCD_W;
+			lcddev.height=LCD_H;		
+			LCD_WriteReg(0x36,(0<<3)|(1<<6)|(1<<7));//BGR==1,MY==0,MX==0,MV==0
+		break;
+		case 1:
+			lcddev.width=LCD_H;
+			lcddev.height=LCD_W;
+			LCD_WriteReg(0x36,(0<<3)|(1<<7)|(1<<5));//BGR==1,MY==1,MX==0,MV==1
+		break;
+		case 2:						 	 		
+			lcddev.width=LCD_W;
+			lcddev.height=LCD_H;	
+			LCD_WriteReg(0x36,(0<<3)|(0<<6)|(0<<7));//BGR==1,MY==0,MX==0,MV==0
+		break;
+		case 3:
+			lcddev.width=LCD_H;
+			lcddev.height=LCD_W;
+			LCD_WriteReg(0x36,(0<<3)|(0<<7)|(1<<6)|(1<<5));//BGR==1,MY==1,MX==0,MV==1
+		break;	
+		default:break;
+	}		
+}	 

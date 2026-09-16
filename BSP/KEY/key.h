@@ -1,75 +1,75 @@
-/*
- * °´¼üÇı¶¯Í·ÎÄ¼ş£¨×´Ì¬»úÏû¶¶£©
- * °´¼ü1: PB1 - Ä£Ê½ÇĞ»»
- * °´¼ü2: PB12 - µµÎ»ÇĞ»»/·ç»ú¿ª¹Ø
- *
- * ×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
- * ÏĞÓãºÅ£ºtb43915564
- * ĞŞ¸ÄÈÕÆÚ£º2026/2/1
- * ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
- */
-#ifndef __KEY_H
-#define __KEY_H
-
-#include "sys.h"
-#include "FreeRTOS.h"
-#include "task.h"
-#include "gpiox.h"
-
-/* °´¼üÒı½Å¶¨Òå */
-#define KEY1_GPIO_PORT      GPIOB
-#define KEY1_GPIO_PIN       GPIO_Pin_1
-
-
-#define KEY2_GPIO_PORT      GPIOB
-#define KEY2_GPIO_PIN       GPIO_Pin_12
-
-/* °´¼üµçÆ½¶ÁÈ¡£¨¼ÙÉè°´ÏÂÎªµÍµçÆ½£© */
-#define KEY1_READ()         GPIO_ReadInputDataBit(KEY1_GPIO_PORT, KEY1_GPIO_PIN)
-#define KEY2_READ()         GPIO_ReadInputDataBit(KEY2_GPIO_PORT, KEY2_GPIO_PIN)
-
-/* °´¼ü°´ÏÂµçÆ½ */
-#define KEY_PRESSED_LEVEL   0   /* °´ÏÂÎªµÍµçÆ½ */
-
-/* Ê±¼ä²ÎÊı¶¨Òå£¨µ¥Î»£ººÁÃë£¬Ê¹ÓÃxTaskGetTickCount()¾«È·¼ÆÊ±£© */
-#define KEY_DEBOUNCE_TIME_MS    30      /* Ïû¶¶Ê±¼ä£º30ms */
-#define KEY_LONG_PRESS_TIME_MS  1000    /* ³¤°´Ê±¼ä£º1000ms£¨1Ãë£© */
-
-/* °´¼üÊÂ¼ş¶¨Òå */
-typedef enum {
-    KEY_EVENT_NONE = 0,         /* ÎŞÊÂ¼ş */
-    KEY_EVENT_SHORT_PRESS,      /* ¶Ì°´ÊÂ¼ş */
-    KEY_EVENT_LONG_PRESS,       /* ³¤°´ÊÂ¼ş */
-    KEY_EVENT_LONG_PRESSING,    /* ³¤°´³ÖĞøÖĞ£¨ÓÃÓÚ·äÃùÆ÷³ÖĞøÃù½Ğ£© */
-    KEY_EVENT_RELEASE           /* °´¼üÊÍ·ÅÊÂ¼ş */
-} KeyEvent_t;
-
-/* °´¼ü×´Ì¬»ú×´Ì¬¶¨Òå */
-typedef enum {
-    KEY_STATE_IDLE = 0,         /* ¿ÕÏĞ×´Ì¬ */
-    KEY_STATE_DEBOUNCE,         /* Ïû¶¶×´Ì¬ */
-    KEY_STATE_PRESSED,          /* °´ÏÂÈ·ÈÏ×´Ì¬ */
-    KEY_STATE_LONG_PRESS,       /* ³¤°´×´Ì¬ */
-    KEY_STATE_WAIT_RELEASE      /* µÈ´ıÊÍ·Å×´Ì¬ */
-} KeyState_t;
-
-/* °´¼ü¿ØÖÆ½á¹¹Ìå */
-typedef struct {
-    u8 (*readPin)(void);        /* ¶ÁÈ¡Òı½ÅµçÆ½º¯ÊıÖ¸Õë */
-    TickType_t pressStartTick;  /* °´ÏÂ¿ªÊ¼Ê±¼ä´Á£¨ÓÃÓÚ¾«È·¼ÆÊ±£© */
-    KeyState_t state;           /* µ±Ç°×´Ì¬ */
-    KeyEvent_t event;           /* µ±Ç°ÊÂ¼ş */
-    u8 longPressTriggered;      /* ³¤°´ÊÂ¼şÊÇ·ñÒÑ´¥·¢ */
-} Key_t;
-
-/* º¯ÊıÉùÃ÷ */
-void Key_Init(void);                        /* ³õÊ¼»¯°´¼ü */
-void Key_Scan(void);                        /* °´¼üÉ¨Ãè */
-KeyEvent_t Key1_GetEvent(void);             /* »ñÈ¡°´¼ü1ÊÂ¼ş */
-KeyEvent_t Key2_GetEvent(void);             /* »ñÈ¡°´¼ü2ÊÂ¼ş */
-void Key1_ClearEvent(void);                 /* Çå³ı°´¼ü1ÊÂ¼ş */
-void Key2_ClearEvent(void);                 /* Çå³ı°´¼ü2ÊÂ¼ş */
-u8 Key1_IsPressed(void);                    /* ¼ì²é°´¼ü1ÊÇ·ñ°´ÏÂ */
-u8 Key2_IsPressed(void);                    /* ¼ì²é°´¼ü2ÊÇ·ñ°´ÏÂ */
-
-#endif /* __KEY_H */
+/*
+ * æŒ‰é”®é©±åŠ¨å¤´æ–‡ä»¶ï¼ˆçŠ¶æ€æœºæ¶ˆæŠ–ï¼‰
+ * æŒ‰é”®1: PB1 - æ¨¡å¼åˆ‡æ¢
+ * æŒ‰é”®2: PB12 - æ¡£ä½åˆ‡æ¢/é£æœºå¼€å…³
+ *
+ * ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
+ * é—²é±¼å·ï¼štb43915564
+ * ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
+ * é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ */
+#ifndef __KEY_H
+#define __KEY_H
+
+#include "sys.h"
+#include "FreeRTOS.h"
+#include "task.h"
+#include "gpiox.h"
+
+/* æŒ‰é”®å¼•è„šå®šä¹‰ */
+#define KEY1_GPIO_PORT      GPIOB
+#define KEY1_GPIO_PIN       GPIO_Pin_1
+
+
+#define KEY2_GPIO_PORT      GPIOB
+#define KEY2_GPIO_PIN       GPIO_Pin_12
+
+/* æŒ‰é”®ç”µå¹³è¯»å–ï¼ˆå‡è®¾æŒ‰ä¸‹ä¸ºä½ç”µå¹³ï¼‰ */
+#define KEY1_READ()         GPIO_ReadInputDataBit(KEY1_GPIO_PORT, KEY1_GPIO_PIN)
+#define KEY2_READ()         GPIO_ReadInputDataBit(KEY2_GPIO_PORT, KEY2_GPIO_PIN)
+
+/* æŒ‰é”®æŒ‰ä¸‹ç”µå¹³ */
+#define KEY_PRESSED_LEVEL   0   /* æŒ‰ä¸‹ä¸ºä½ç”µå¹³ */
+
+/* æ—¶é—´å‚æ•°å®šä¹‰ï¼ˆå•ä½ï¼šæ¯«ç§’ï¼Œä½¿ç”¨xTaskGetTickCount()ç²¾ç¡®è®¡æ—¶ï¼‰ */
+#define KEY_DEBOUNCE_TIME_MS    30      /* æ¶ˆæŠ–æ—¶é—´ï¼š30ms */
+#define KEY_LONG_PRESS_TIME_MS  1000    /* é•¿æŒ‰æ—¶é—´ï¼š1000msï¼ˆ1ç§’ï¼‰ */
+
+/* æŒ‰é”®äº‹ä»¶å®šä¹‰ */
+typedef enum {
+    KEY_EVENT_NONE = 0,         /* æ— äº‹ä»¶ */
+    KEY_EVENT_SHORT_PRESS,      /* çŸ­æŒ‰äº‹ä»¶ */
+    KEY_EVENT_LONG_PRESS,       /* é•¿æŒ‰äº‹ä»¶ */
+    KEY_EVENT_LONG_PRESSING,    /* é•¿æŒ‰æŒç»­ä¸­ï¼ˆç”¨äºèœ‚é¸£å™¨æŒç»­é¸£å«ï¼‰ */
+    KEY_EVENT_RELEASE           /* æŒ‰é”®é‡Šæ”¾äº‹ä»¶ */
+} KeyEvent_t;
+
+/* æŒ‰é”®çŠ¶æ€æœºçŠ¶æ€å®šä¹‰ */
+typedef enum {
+    KEY_STATE_IDLE = 0,         /* ç©ºé—²çŠ¶æ€ */
+    KEY_STATE_DEBOUNCE,         /* æ¶ˆæŠ–çŠ¶æ€ */
+    KEY_STATE_PRESSED,          /* æŒ‰ä¸‹ç¡®è®¤çŠ¶æ€ */
+    KEY_STATE_LONG_PRESS,       /* é•¿æŒ‰çŠ¶æ€ */
+    KEY_STATE_WAIT_RELEASE      /* ç­‰å¾…é‡Šæ”¾çŠ¶æ€ */
+} KeyState_t;
+
+/* æŒ‰é”®æ§åˆ¶ç»“æ„ä½“ */
+typedef struct {
+    u8 (*readPin)(void);        /* è¯»å–å¼•è„šç”µå¹³å‡½æ•°æŒ‡é’ˆ */
+    TickType_t pressStartTick;  /* æŒ‰ä¸‹å¼€å§‹æ—¶é—´æˆ³ï¼ˆç”¨äºç²¾ç¡®è®¡æ—¶ï¼‰ */
+    KeyState_t state;           /* å½“å‰çŠ¶æ€ */
+    KeyEvent_t event;           /* å½“å‰äº‹ä»¶ */
+    u8 longPressTriggered;      /* é•¿æŒ‰äº‹ä»¶æ˜¯å¦å·²è§¦å‘ */
+} Key_t;
+
+/* å‡½æ•°å£°æ˜ */
+void Key_Init(void);                        /* åˆå§‹åŒ–æŒ‰é”® */
+void Key_Scan(void);                        /* æŒ‰é”®æ‰«æ */
+KeyEvent_t Key1_GetEvent(void);             /* è·å–æŒ‰é”®1äº‹ä»¶ */
+KeyEvent_t Key2_GetEvent(void);             /* è·å–æŒ‰é”®2äº‹ä»¶ */
+void Key1_ClearEvent(void);                 /* æ¸…é™¤æŒ‰é”®1äº‹ä»¶ */
+void Key2_ClearEvent(void);                 /* æ¸…é™¤æŒ‰é”®2äº‹ä»¶ */
+u8 Key1_IsPressed(void);                    /* æ£€æŸ¥æŒ‰é”®1æ˜¯å¦æŒ‰ä¸‹ */
+u8 Key2_IsPressed(void);                    /* æ£€æŸ¥æŒ‰é”®2æ˜¯å¦æŒ‰ä¸‹ */
+
+#endif /* __KEY_H */

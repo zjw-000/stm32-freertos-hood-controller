@@ -1,60 +1,60 @@
-#ifndef __MAIN_H
-#define __MAIN_H
-/*
- * ÓÍÑÌ»ú¿ØÖÆÏµÍ³Ö÷³ÌĞòÍ·ÎÄ¼ş
- * »ùÓÚSTM32F103C8T6 + FreeRTOS
- * 
- * ¹¦ÄÜËµÃ÷£º
- * 1. ´ı»úÄ£Ê½£º·ç»úÍ£Ö¹£¬³ÖĞø¼ÆËã·çËÙ
- * 2. ÊÖ¶¯Ä£Ê½£ºÁ½µµµ÷ËÙ£¨LOW/HIGH£©£¬PID¿ØÖÆ
- * 3. ×Ô¶¯Ä£Ê½£º¸ù¾İ´«¸ĞÆ÷×Ô¶¯µ÷½Ú·çËÙ
- * 4. ·À»ØÁ÷Ä£Ê½£ºÆøÌåÅ¨¶È³¬ãĞÖµÊ±Æô¶¯·ç»ú
- * 5. ¹Ì¼ş¸üĞÂ£ºÍ¨¹ıusart+dma½ÓÊÕ¹Ì¼ş£¬½ÓÊÕÍê³ÉºóÌø×ªµ½appÇø£¬boot+appË«Çø¼Ü¹¹
- * 6. UIÏÔÊ¾¹¦ÄÜ
- * °´¼ü¹¦ÄÜ£º
- * - °´¼ü1(PB1)£º¶Ì°´ÇĞ»»Ä£Ê½
- * - °´¼ü2(PB12)£º¶Ì°´ÇĞ»»µµÎ»£¬³¤°´¿ª¹Ø·ç»ú
- *
- *×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
- *ÏĞÓãºÅ£ºtb43915564
- *ĞŞ¸ÄÈÕÆÚ£º2026/2/1
- *ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
- */
-#include "gpiox.h"
-#include "delay.h"
-#include "key.h"
-#include "usart.h"
-#include "lcd.h"
-#include "gui.h"
-#include "beep.h"
-#include "dma.h"
-#include "iap.h"
-#include "motor.h"
-#include "wind_speed.h"
-#include "mq2.h"
-#include "pid.h"
-#include "sys.h"
-
-
-/*-----------------------------------------------------------
- * È«¾Ö±äÁ¿
- *----------------------------------------------------------*/
-/* PIDËÙ¶È»·¿ØÖÆÏà¹Ø±äÁ¿ */
-PID_TypeDef g_speedPID;             /* ËÙ¶È»·PID¿ØÖÆÆ÷ */
-led_d bep;							/*beep½á¹¹Ìå±äÁ¿--²»¸ÊĞÄµÄÏÌÓã×¢*/
-led_d dht;							/*DHT11½á¹¹Ìå±äÁ¿*/
-
-volatile int overflow=0;			/* Òç³ö¼ÆÊıÆ÷ */
-volatile float speed;				/*µç»ú×ªËÙ*/
-
-
-/*À©Õ¹×÷ÓÃÓò*/
-#if ifopen
-	extern u8 receive_buff[buff_size]; 
-#endif
-
-/*º¯ÊıÉùÃ÷*/
-void System_Init(void);
-void StartTask_Create(void);
-static void Hardware_Init(void);
-#endif
+#ifndef __MAIN_H
+#define __MAIN_H
+/*
+ * æ²¹çƒŸæœºæ§åˆ¶ç³»ç»Ÿä¸»ç¨‹åºå¤´æ–‡ä»¶
+ * åŸºäºSTM32F103C8T6 + FreeRTOS
+ * 
+ * åŠŸèƒ½è¯´æ˜ï¼š
+ * 1. å¾…æœºæ¨¡å¼ï¼šé£æœºåœæ­¢ï¼ŒæŒç»­è®¡ç®—é£é€Ÿ
+ * 2. æ‰‹åŠ¨æ¨¡å¼ï¼šä¸¤æ¡£è°ƒé€Ÿï¼ˆLOW/HIGHï¼‰ï¼ŒPIDæ§åˆ¶
+ * 3. è‡ªåŠ¨æ¨¡å¼ï¼šæ ¹æ®ä¼ æ„Ÿå™¨è‡ªåŠ¨è°ƒèŠ‚é£é€Ÿ
+ * 4. é˜²å›æµæ¨¡å¼ï¼šæ°”ä½“æµ“åº¦è¶…é˜ˆå€¼æ—¶å¯åŠ¨é£æœº
+ * 5. å›ºä»¶æ›´æ–°ï¼šé€šè¿‡usart+dmaæ¥æ”¶å›ºä»¶ï¼Œæ¥æ”¶å®Œæˆåè·³è½¬åˆ°appåŒºï¼Œboot+appåŒåŒºæ¶æ„
+ * 6. UIæ˜¾ç¤ºåŠŸèƒ½
+ * æŒ‰é”®åŠŸèƒ½ï¼š
+ * - æŒ‰é”®1(PB1)ï¼šçŸ­æŒ‰åˆ‡æ¢æ¨¡å¼
+ * - æŒ‰é”®2(PB12)ï¼šçŸ­æŒ‰åˆ‡æ¢æ¡£ä½ï¼Œé•¿æŒ‰å¼€å…³é£æœº
+ *
+ *ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
+ *é—²é±¼å·ï¼štb43915564
+ *ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
+ *é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ */
+#include "gpiox.h"
+#include "delay.h"
+#include "key.h"
+#include "usart.h"
+#include "lcd.h"
+#include "gui.h"
+#include "beep.h"
+#include "dma.h"
+#include "iap.h"
+#include "motor.h"
+#include "wind_speed.h"
+#include "mq2.h"
+#include "pid.h"
+#include "sys.h"
+
+
+/*-----------------------------------------------------------
+ * å…¨å±€å˜é‡
+ *----------------------------------------------------------*/
+/* PIDé€Ÿåº¦ç¯æ§åˆ¶ç›¸å…³å˜é‡ */
+PID_TypeDef g_speedPID;             /* é€Ÿåº¦ç¯PIDæ§åˆ¶å™¨ */
+led_d bep;							/*beepç»“æ„ä½“å˜é‡--ä¸ç”˜å¿ƒçš„å’¸é±¼æ³¨*/
+led_d dht;							/*DHT11ç»“æ„ä½“å˜é‡*/
+
+volatile int overflow=0;			/* æº¢å‡ºè®¡æ•°å™¨ */
+volatile float speed;				/*ç”µæœºè½¬é€Ÿ*/
+
+
+/*æ‰©å±•ä½œç”¨åŸŸ*/
+#if ifopen
+	extern u8 receive_buff[buff_size]; 
+#endif
+
+/*å‡½æ•°å£°æ˜*/
+void System_Init(void);
+void StartTask_Create(void);
+static void Hardware_Init(void);
+#endif

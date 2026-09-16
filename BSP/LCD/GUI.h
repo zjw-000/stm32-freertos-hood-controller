@@ -1,49 +1,49 @@
-/***********************
-ÏîÄ¿Ãû£ºÒº¾§ÆÁÇı¶¯Í·ÎÄ¼ş
-×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
-ÏĞÓãºÅ£ºtb43915564
-ĞŞ¸ÄÈÕÆÚ£º2026/2/1
-ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
-************************/
-//=========================================µçÔ´½ÓÏß================================================//
-//     LCDÄ£¿é                CH32µ¥Æ¬»ú
-//      VCC          ½Ó        DC5V/3.3V      //µçÔ´
-//      GND          ½Ó          GND          //µçÔ´µØ
-//=======================================Òº¾§ÆÁÊı¾İÏß½ÓÏß==========================================//
-//±¾Ä£¿éÄ¬ÈÏÊı¾İ×ÜÏßÀàĞÍÎªSPI×ÜÏß
-//     LCDÄ£¿é                CH32µ¥Æ¬»ú    
-//       SDA         ½Ó          PA7         //Òº¾§ÆÁSPI×ÜÏßÊı¾İĞ´ĞÅºÅ
-//=======================================Òº¾§ÆÁ¿ØÖÆÏß½ÓÏß==========================================//
-//     LCDÄ£¿é 					      CH32µ¥Æ¬»ú 
-//       LED         ½Ó          PB6         //Òº¾§ÆÁ±³¹â¿ØÖÆĞÅºÅ£¬Èç¹û²»ĞèÒª¿ØÖÆ£¬½Ó5V»ò3.3V
-//       SCK         ½Ó          PA5         //Òº¾§ÆÁSPI×ÜÏßÊ±ÖÓĞÅºÅ
-//       A0          ½Ó          PB7         //Òº¾§ÆÁÊı¾İ/ÃüÁî¿ØÖÆĞÅºÅ
-//       RESET       ½Ó          PB8         //Òº¾§ÆÁ¸´Î»¿ØÖÆĞÅºÅ
-//       CS          ½Ó          PB9         //Òº¾§ÆÁÆ¬Ñ¡¿ØÖÆĞÅºÅ
-//=========================================´¥ÃşÆÁ´¥½ÓÏß=========================================//
-//Ä£¿é²»´ø´¥Ãş¹¦ÄÜ£¬²»ĞèÒª½øĞĞ´¥ÃşÆÁ½ÓÏß
-		
-#ifndef __GUI_H__
-#define __GUI_H__
-
-void GUI_DrawPoint(u16 x,u16 y,u16 color);
-void LCD_Fill(u16 sx,u16 sy,u16 ex,u16 ey,u16 color);
-void LCD_DrawLine(u16 x1, u16 y1, u16 x2, u16 y2);
-void LCD_DrawRectangle(u16 x1, u16 y1, u16 x2, u16 y2);
-void Draw_Circle(u16 x0,u16 y0,u16 fc,u8 r);
-void Draw_Triangel(u16 x0,u16 y0,u16 x1,u16 y1,u16 x2,u16 y2);
-void Fill_Triangel(u16 x0,u16 y0,u16 x1,u16 y1,u16 x2,u16 y2);
-void LCD_ShowChar(u16 x,u16 y,u16 fc, u16 bc, u8 num,u8 size,u8 mode);
-void LCD_ShowNum(u16 x,u16 y,u32 num,u8 len,u8 size);
-void LCD_Show2Num(u16 x,u16 y,u16 num,u8 len,u8 size,u8 mode);
-void LCD_ShowString(u16 x,u16 y,u8 size,u8 *p,u8 mode);
-void GUI_DrawFont16(u16 x, u16 y, u16 fc, u16 bc, u8 *s,u8 mode);
-void GUI_DrawFont24(u16 x, u16 y, u16 fc, u16 bc, u8 *s,u8 mode);
-void GUI_DrawFont32(u16 x, u16 y, u16 fc, u16 bc, u8 *s,u8 mode);
-void Show_Str(u16 x, u16 y, u16 fc, u16 bc, u8 *str,u8 size,u8 mode);
-void Gui_Drawbmp16(u16 x,u16 y,const unsigned char *p); //ÏÔÊ¾40*40 QQÍ¼Æ¬
-void gui_circle(int xc, int yc,u16 c,int r, int fill);
-void Gui_StrCenter(u16 x, u16 y, u16 fc, u16 bc, u8 *str,u8 size,u8 mode);
-void LCD_DrawFillRectangle(u16 x1, u16 y1, u16 x2, u16 y2);
-#endif
-
+/***********************
+é¡¹ç›®åï¼šæ¶²æ™¶å±é©±åŠ¨å¤´æ–‡ä»¶
+ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
+é—²é±¼å·ï¼štb43915564
+ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
+é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+************************/
+//=========================================ç”µæºæ¥çº¿================================================//
+//     LCDæ¨¡å—                CH32å•ç‰‡æœº
+//      VCC          æ¥        DC5V/3.3V      //ç”µæº
+//      GND          æ¥          GND          //ç”µæºåœ°
+//=======================================æ¶²æ™¶å±æ•°æ®çº¿æ¥çº¿==========================================//
+//æœ¬æ¨¡å—é»˜è®¤æ•°æ®æ€»çº¿ç±»å‹ä¸ºSPIæ€»çº¿
+//     LCDæ¨¡å—                CH32å•ç‰‡æœº    
+//       SDA         æ¥          PA7         //æ¶²æ™¶å±SPIæ€»çº¿æ•°æ®å†™ä¿¡å·
+//=======================================æ¶²æ™¶å±æ§åˆ¶çº¿æ¥çº¿==========================================//
+//     LCDæ¨¡å— 					      CH32å•ç‰‡æœº 
+//       LED         æ¥          PB6         //æ¶²æ™¶å±èƒŒå…‰æ§åˆ¶ä¿¡å·ï¼Œå¦‚æœä¸éœ€è¦æ§åˆ¶ï¼Œæ¥5Væˆ–3.3V
+//       SCK         æ¥          PA5         //æ¶²æ™¶å±SPIæ€»çº¿æ—¶é’Ÿä¿¡å·
+//       A0          æ¥          PB7         //æ¶²æ™¶å±æ•°æ®/å‘½ä»¤æ§åˆ¶ä¿¡å·
+//       RESET       æ¥          PB8         //æ¶²æ™¶å±å¤ä½æ§åˆ¶ä¿¡å·
+//       CS          æ¥          PB9         //æ¶²æ™¶å±ç‰‡é€‰æ§åˆ¶ä¿¡å·
+//=========================================è§¦æ‘¸å±è§¦æ¥çº¿=========================================//
+//æ¨¡å—ä¸å¸¦è§¦æ‘¸åŠŸèƒ½ï¼Œä¸éœ€è¦è¿›è¡Œè§¦æ‘¸å±æ¥çº¿
+		
+#ifndef __GUI_H__
+#define __GUI_H__
+
+void GUI_DrawPoint(u16 x,u16 y,u16 color);
+void LCD_Fill(u16 sx,u16 sy,u16 ex,u16 ey,u16 color);
+void LCD_DrawLine(u16 x1, u16 y1, u16 x2, u16 y2);
+void LCD_DrawRectangle(u16 x1, u16 y1, u16 x2, u16 y2);
+void Draw_Circle(u16 x0,u16 y0,u16 fc,u8 r);
+void Draw_Triangel(u16 x0,u16 y0,u16 x1,u16 y1,u16 x2,u16 y2);
+void Fill_Triangel(u16 x0,u16 y0,u16 x1,u16 y1,u16 x2,u16 y2);
+void LCD_ShowChar(u16 x,u16 y,u16 fc, u16 bc, u8 num,u8 size,u8 mode);
+void LCD_ShowNum(u16 x,u16 y,u32 num,u8 len,u8 size);
+void LCD_Show2Num(u16 x,u16 y,u16 num,u8 len,u8 size,u8 mode);
+void LCD_ShowString(u16 x,u16 y,u8 size,u8 *p,u8 mode);
+void GUI_DrawFont16(u16 x, u16 y, u16 fc, u16 bc, u8 *s,u8 mode);
+void GUI_DrawFont24(u16 x, u16 y, u16 fc, u16 bc, u8 *s,u8 mode);
+void GUI_DrawFont32(u16 x, u16 y, u16 fc, u16 bc, u8 *s,u8 mode);
+void Show_Str(u16 x, u16 y, u16 fc, u16 bc, u8 *str,u8 size,u8 mode);
+void Gui_Drawbmp16(u16 x,u16 y,const unsigned char *p); //æ˜¾ç¤º40*40 QQå›¾ç‰‡
+void gui_circle(int xc, int yc,u16 c,int r, int fill);
+void Gui_StrCenter(u16 x, u16 y, u16 fc, u16 bc, u8 *str,u8 size,u8 mode);
+void LCD_DrawFillRectangle(u16 x1, u16 y1, u16 x2, u16 y2);
+#endif
+

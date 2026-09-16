@@ -1,47 +1,47 @@
-#ifndef __STMFLASH_H__
-#define __STMFLASH_H__
-#include "sys.h"  
-/***********************
-ÏîÄ¿Ãû£ºflashÇı¶¯Í·ÎÄ¼ş
-×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
-ÏĞÓãºÅ£ºtb43915564
-ĞŞ¸ÄÈÕÆÚ£º2026/2/1
-ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
-************************/  
-
-//ÓÃ»§¸ù¾İ×Ô¼ºµÄĞèÒªÉèÖÃ
-#define STM32_FLASH_SIZE 64	 			//ËùÑ¡STM32µÄFLASHÈİÁ¿´óĞ¡(µ¥Î»ÎªK)£¬ÒòÎªÊÇSTM32F103C8T6
-#define STM32_FLASH_WREN 1              //Ê¹ÄÜFLASHĞ´Èë(0£¬½ûÖ¹;1£¬Ê¹ÄÜ)
-
-
-//FLASHÆğÊ¼µØÖ·
-#define STM32_FLASH_BASE 0x08000000 	//STM32 FLASHµÄÆğÊ¼µØÖ·
-//FLASH½âËø¼üÖµ
- 
-
-u16 STMFLASH_ReadHalfWord(u32 faddr);		  //¶Á³ö°ë×Ö  
-void STMFLASH_WriteLenByte(u32 WriteAddr,u32 DataToWrite,u16 Len);	//Ö¸¶¨µØÖ·¿ªÊ¼Ğ´ÈëÖ¸¶¨³¤¶ÈµÄÊı¾İ
-u32 STMFLASH_ReadLenByte(u32 ReadAddr,u16 Len);						//Ö¸¶¨µØÖ·¿ªÊ¼¶ÁÈ¡Ö¸¶¨³¤¶ÈÊı¾İ
-void STMFLASH_Write(u32 WriteAddr,u16 *pBuffer,u16 NumToWrite);		//´ÓÖ¸¶¨µØÖ·¿ªÊ¼Ğ´ÈëÖ¸¶¨³¤¶ÈµÄÊı¾İ
-void STMFLASH_Read(u32 ReadAddr,u16 *pBuffer,u16 NumToRead);   		//´ÓÖ¸¶¨µØÖ·¿ªÊ¼¶Á³öÖ¸¶¨³¤¶ÈµÄÊı¾İ
-
-//²âÊÔĞ´Èë
-void Test_Write(u32 WriteAddr,u16 WriteData);								   
-#endif
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#ifndef __STMFLASH_H__
+#define __STMFLASH_H__
+#include "sys.h"  
+/***********************
+é¡¹ç›®åï¼šflashé©±åŠ¨å¤´æ–‡ä»¶
+ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
+é—²é±¼å·ï¼štb43915564
+ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
+é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+************************/  
+
+//ç”¨æˆ·æ ¹æ®è‡ªå·±çš„éœ€è¦è®¾ç½®
+#define STM32_FLASH_SIZE 64	 			//æ‰€é€‰STM32çš„FLASHå®¹é‡å¤§å°(å•ä½ä¸ºK)ï¼Œå› ä¸ºæ˜¯STM32F103C8T6
+#define STM32_FLASH_WREN 1              //ä½¿èƒ½FLASHå†™å…¥(0ï¼Œç¦æ­¢;1ï¼Œä½¿èƒ½)
+
+
+//FLASHèµ·å§‹åœ°å€
+#define STM32_FLASH_BASE 0x08000000 	//STM32 FLASHçš„èµ·å§‹åœ°å€
+//FLASHè§£é”é”®å€¼
+ 
+
+u16 STMFLASH_ReadHalfWord(u32 faddr);		  //è¯»å‡ºåŠå­—  
+void STMFLASH_WriteLenByte(u32 WriteAddr,u32 DataToWrite,u16 Len);	//æŒ‡å®šåœ°å€å¼€å§‹å†™å…¥æŒ‡å®šé•¿åº¦çš„æ•°æ®
+u32 STMFLASH_ReadLenByte(u32 ReadAddr,u16 Len);						//æŒ‡å®šåœ°å€å¼€å§‹è¯»å–æŒ‡å®šé•¿åº¦æ•°æ®
+void STMFLASH_Write(u32 WriteAddr,u16 *pBuffer,u16 NumToWrite);		//ä»æŒ‡å®šåœ°å€å¼€å§‹å†™å…¥æŒ‡å®šé•¿åº¦çš„æ•°æ®
+void STMFLASH_Read(u32 ReadAddr,u16 *pBuffer,u16 NumToRead);   		//ä»æŒ‡å®šåœ°å€å¼€å§‹è¯»å‡ºæŒ‡å®šé•¿åº¦çš„æ•°æ®
+
+//æµ‹è¯•å†™å…¥
+void Test_Write(u32 WriteAddr,u16 WriteData);								   
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

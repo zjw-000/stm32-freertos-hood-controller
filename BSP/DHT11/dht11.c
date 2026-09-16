@@ -1,174 +1,174 @@
-#include "dht11.h"
-#include "gpiox.h"
-
-/**********************************************
-ÏîÄ¿Ãû£ºDHT11Çı¶¯
-×÷Õß£º²»¸ÊĞÄµÄÏÌÓã--ÏĞÓã/²»´î(414192836)--Ğ¡ºìÊé
-ÏĞÓãºÅ£ºtb43915564
-ĞŞ¸ÄÈÕÆÚ£º2026/2/1
-ÒÑÉêÇë°æÈ¨£¬ÇëÎğµ¹Âô£¡
-**********************************************/   
-
-u8  BUF[5]={0x00,0x00,0x00,0x00,0x00};    //´æ´¢¶ÁÈ¡µÄÎÂÊª¶ÈĞÅÏ¢
-u32 sum=0;         						  //Ğ£ÑéÖµ
-
-/***-----------------------------------------------------------------------**/
-/** 
-* @brief: dht11¿ªÊ¼ĞÅºÅ
-* @param: ½á¹¹Ìå±äÁ¿
-* @return:ÎŞ
-**/ 
- void DHT11_Start(led_d *io)  //DHT11Êı¾İÊäÈëÒı½ÅPC14
-{
-	
-	GPIO_InitTypeDef GPIO_InitStructure;
-	
-	chushi(io);
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; //ÍÆÍìÊä³öÄ£Ê½
-	GPIO_InitStructure.GPIO_Pin = io->pin;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(io->port, &GPIO_InitStructure);
-	GPIO_ResetBits(io->port,io->pin); 					//À­µÍÊı¾İÏß
-	delay_ms(20);    									//À­µÍÖÁÉÙ18ms
-	GPIO_SetBits(io->port,io->pin); 					//À­¸ßÊı¾İÏß 
-	delay_us(30);     									//Ö÷»úÀ­¸ß20~40us
-	GPIO_ResetBits(io->port,io->pin);
-}
-/***-----------------------------------------------------------------------**/
-
-/***-----------------------------------------------------------------------**/
-/** 
-* @brief: ÅäÖÃio¿Ú
-* @param: ½á¹¹Ìå±äÁ¿
-* @return:ÎŞ
-**/ 
-void DHT11_Read(led_d *io)
-{
-	GPIO_InitTypeDef GPIO_InitStructure;
-	chushi(io);
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING; 
-	GPIO_InitStructure.GPIO_Pin = io->pin;
-	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(io->port, &GPIO_InitStructure);
-}
-/***-----------------------------------------------------------------------**/
-
-/***-----------------------------------------------------------------------**/
-/** 
-* @brief: dht11¶ÁÒ»¸ö×Ö½Ú
-* @param: ½á¹¹Ìå±äÁ¿
-* @return: readDat
-**/ 
-u8 DHT_Read_Byte(led_d *io)
-{
-	u8 temp;  
-	u8 ReadDat=0; 
-	u8 t = 0;
-	u8 i; 
- 
-	for(i=0;i<8;i++)
-	{
-		while(readpin(io)==0&&t<100)  
-		{		
-			delay_us(1);
-			t++;  //·ÀÖ¹¿¨ËÀ
-		}
-		t=0;
-		//ÓÉÓÚ¡®0¡¯´úÂë¸ßµçÆ½Ê±¼ä26~28us£¬1´úÂë¸ßµçÆ½Ê±¼ä70us£¬ÑÓÊ±30us£¬¿ÉÅĞ¶Ï¸ßµÍµçÆ½£¬Êı×Ö0¶ÁÈ¡µ½µÄÊÇµÍµçÆ½£¬¸ßµçÆ½Ôò·´Ö®
-		delay_us(30);
-		temp=0;
-		if(readpin(io)==1) temp=1;		
-			
-		while(readpin(io)==1&&t<100)
-		{		
-			delay_us(1);
-			t++;
-		}
-		t=0;
-		ReadDat<<=1; //×óÒÆ1Î»£¬DHT11Êı¾İÓÉ¸ßµ½µÍ·¢ËÍ
-		ReadDat|=temp;
-	}	
-	return ReadDat;
-}
-/***-----------------------------------------------------------------------**/
-
-/***-----------------------------------------------------------------------**/
-/** 
-* @brief: dht11²É¼¯Êı¾İ
-* @param: ½á¹¹Ìå±äÁ¿
-* @return:1³É¹¦£¬0Ê§°Ü
-**/ 
-u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io)
-{
-	u8 i;
-	u8 t = 0;
-	io->port=port;
-	io->pin=pin;
-	DHT11_Start(io);
-	DHT11_Read(io);
-	delay_us(20);
-	//ÑÓÊ±20us£¬µÍµçÆ½80us£¬»¹Ê£60us£¬¼ì²éÊÇ·ñÊÇµÍµçÆ½ÒÔÈ·¶¨ÊÇ·ñÓĞÏìÓ¦ĞÅºÅ
-	if(readpin(io)==0)  //Èç¹û¶ÁÈ¡µ½µÍµçÆ½£¬Ö¤Ã÷DHT11ÏìÓ¦
-	{
-		while(readpin(io)==0&&t<100)//½ÓÊÕÏìÓ¦ĞÅºÅµÍµçÆ½Ê£Óà60us£¬µÈ´ı±ä¸ßµçÆ½
-		{
-			delay_us(1);
-			t++;			
-		}
-		t=0;//³¬¹ı100us×Ô¶¯ÏòÏÂÔËĞĞ£¬ÒÔÃâ¿¨ËÀ
-		while(readpin(io)==1&&t<100)//½ÓÊÕÏìÓ¦ĞÅºÅ¸ßµçÆ½80us£¬µÈ´ı±äµÍµçÆ½
-			{
-				delay_us(1);
-				t++;			
-			}
-		t=0;
-		for(i=0;i<5;i++)  //½ÓÊÕ40Î»Êı¾İ
-			{
-				BUF[i]=DHT_Read_Byte(io);//¶Á³ö1¸ö×Ö½Ú
-			}
-		delay_us(50);//½áÊøĞÅºÅ
-	}
-	sum=BUF[0]+BUF[1]+BUF[2]+BUF[3];		// BUF[0]£ºÊª¶ÈÕûÊıÖµ BUF[1]£ºÊª¶ÈĞ¡ÊıÖµ BUF[2]£ºÎÂ¶ÈÕûÊıÖµ BUF[3]£ºÎÂ¶ÈĞ¡ÊıÖµ BUF[4]£ºĞ£ÑéÎ»£¬¶¼Îª8Î»Êı¾İ
-	if(BUF[4]==(u8)sum)  //Ğ£Ñé  
-	{
-		*humi=BUF[0];
-		*temp=BUF[2];
-		return 1;    
-	}
-	else
-		return 0;    
-}
-/***-----------------------------------------------------------------------**/
-
-/***-----------------------------------------------------------------------**/
-/** 
-* @brief: Ê±ÖÓÑ¡Ôñ
-* @param: ½á¹¹Ìå±äÁ¿
-* @return:ÎŞ
-**/ 
-void chushi(led_d *io)
-{
-		if(io->port==GPIOA) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE); 
-		else if(io->port==GPIOB) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
-		else if(io->port==GPIOC) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
-		else if(io->port==GPIOD) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
-		else if(io->port==GPIOE) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
-		else if(io->port==GPIOF) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOF, ENABLE);
-		else if(io->port==GPIOG) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
-
-}
-/***-----------------------------------------------------------------------**/
-
-
-/***-----------------------------------------------------------------------**/
-/** 
-* @brief: ¶ÁÈ¡IO¿Ú×´Ì¬
-* @param: ½á¹¹Ìå±äÁ¿
-* @return:0´ú±íÊäÈëµÍµçÆ½
-**/ 
-u8 readpin(led_d *io)
-{
-	return GPIO_ReadInputDataBit(io->port,io->pin);
-}
-/***-----------------------------------------------------------------------**/
-
+#include "dht11.h"
+#include "gpiox.h"
+
+/**********************************************
+é¡¹ç›®åï¼šDHT11é©±åŠ¨
+ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
+é—²é±¼å·ï¼štb43915564
+ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
+å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+**********************************************/   
+
+u8  BUF[5]={0x00,0x00,0x00,0x00,0x00};    //å­˜å‚¨è¯»å–çš„æ¸©æ¹¿åº¦ä¿¡æ¯
+u32 sum=0;         						  //æ ¡éªŒå€¼
+
+/***-----------------------------------------------------------------------**/
+/** 
+* @brief: dht11å¼€å§‹ä¿¡å·
+* @param: ç»“æ„ä½“å˜é‡
+* @return:æ— 
+**/ 
+ void DHT11_Start(led_d *io)  //DHT11æ•°æ®è¾“å…¥å¼•è„šPC14
+{
+	
+	GPIO_InitTypeDef GPIO_InitStructure;
+	
+	chushi(io);
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; //æ¨æŒ½è¾“å‡ºæ¨¡å¼
+	GPIO_InitStructure.GPIO_Pin = io->pin;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(io->port, &GPIO_InitStructure);
+	GPIO_ResetBits(io->port,io->pin); 					//æ‹‰ä½æ•°æ®çº¿
+	delay_ms(20);    									//æ‹‰ä½è‡³å°‘18ms
+	GPIO_SetBits(io->port,io->pin); 					//æ‹‰é«˜æ•°æ®çº¿ 
+	delay_us(30);     									//ä¸»æœºæ‹‰é«˜20~40us
+	GPIO_ResetBits(io->port,io->pin);
+}
+/***-----------------------------------------------------------------------**/
+
+/***-----------------------------------------------------------------------**/
+/** 
+* @brief: é…ç½®ioå£
+* @param: ç»“æ„ä½“å˜é‡
+* @return:æ— 
+**/ 
+void DHT11_Read(led_d *io)
+{
+	GPIO_InitTypeDef GPIO_InitStructure;
+	chushi(io);
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING; 
+	GPIO_InitStructure.GPIO_Pin = io->pin;
+	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+	GPIO_Init(io->port, &GPIO_InitStructure);
+}
+/***-----------------------------------------------------------------------**/
+
+/***-----------------------------------------------------------------------**/
+/** 
+* @brief: dht11è¯»ä¸€ä¸ªå­—èŠ‚
+* @param: ç»“æ„ä½“å˜é‡
+* @return: readDat
+**/ 
+u8 DHT_Read_Byte(led_d *io)
+{
+	u8 temp;  
+	u8 ReadDat=0; 
+	u8 t = 0;
+	u8 i; 
+ 
+	for(i=0;i<8;i++)
+	{
+		while(readpin(io)==0&&t<100)  
+		{		
+			delay_us(1);
+			t++;  //é˜²æ­¢å¡æ­»
+		}
+		t=0;
+		//ç”±äºâ€˜0â€™ä»£ç é«˜ç”µå¹³æ—¶é—´26~28usï¼Œ1ä»£ç é«˜ç”µå¹³æ—¶é—´70usï¼Œå»¶æ—¶30usï¼Œå¯åˆ¤æ–­é«˜ä½ç”µå¹³ï¼Œæ•°å­—0è¯»å–åˆ°çš„æ˜¯ä½ç”µå¹³ï¼Œé«˜ç”µå¹³åˆ™åä¹‹
+		delay_us(30);
+		temp=0;
+		if(readpin(io)==1) temp=1;		
+			
+		while(readpin(io)==1&&t<100)
+		{		
+			delay_us(1);
+			t++;
+		}
+		t=0;
+		ReadDat<<=1; //å·¦ç§»1ä½ï¼ŒDHT11æ•°æ®ç”±é«˜åˆ°ä½å‘é€
+		ReadDat|=temp;
+	}	
+	return ReadDat;
+}
+/***-----------------------------------------------------------------------**/
+
+/***-----------------------------------------------------------------------**/
+/** 
+* @brief: dht11é‡‡é›†æ•°æ®
+* @param: ç»“æ„ä½“å˜é‡
+* @return:1æˆåŠŸï¼Œ0å¤±è´¥
+**/ 
+u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io)
+{
+	u8 i;
+	u8 t = 0;
+	io->port=port;
+	io->pin=pin;
+	DHT11_Start(io);
+	DHT11_Read(io);
+	delay_us(20);
+	//å»¶æ—¶20usï¼Œä½ç”µå¹³80usï¼Œè¿˜å‰©60usï¼Œæ£€æŸ¥æ˜¯å¦æ˜¯ä½ç”µå¹³ä»¥ç¡®å®šæ˜¯å¦æœ‰å“åº”ä¿¡å·
+	if(readpin(io)==0)  //å¦‚æœè¯»å–åˆ°ä½ç”µå¹³ï¼Œè¯æ˜DHT11å“åº”
+	{
+		while(readpin(io)==0&&t<100)//æ¥æ”¶å“åº”ä¿¡å·ä½ç”µå¹³å‰©ä½™60usï¼Œç­‰å¾…å˜é«˜ç”µå¹³
+		{
+			delay_us(1);
+			t++;			
+		}
+		t=0;//è¶…è¿‡100usè‡ªåŠ¨å‘ä¸‹è¿è¡Œï¼Œä»¥å…å¡æ­»
+		while(readpin(io)==1&&t<100)//æ¥æ”¶å“åº”ä¿¡å·é«˜ç”µå¹³80usï¼Œç­‰å¾…å˜ä½ç”µå¹³
+			{
+				delay_us(1);
+				t++;			
+			}
+		t=0;
+		for(i=0;i<5;i++)  //æ¥æ”¶40ä½æ•°æ®
+			{
+				BUF[i]=DHT_Read_Byte(io);//è¯»å‡º1ä¸ªå­—èŠ‚
+			}
+		delay_us(50);//ç»“æŸä¿¡å·
+	}
+	sum=BUF[0]+BUF[1]+BUF[2]+BUF[3];		// BUF[0]ï¼šæ¹¿åº¦æ•´æ•°å€¼ BUF[1]ï¼šæ¹¿åº¦å°æ•°å€¼ BUF[2]ï¼šæ¸©åº¦æ•´æ•°å€¼ BUF[3]ï¼šæ¸©åº¦å°æ•°å€¼ BUF[4]ï¼šæ ¡éªŒä½ï¼Œéƒ½ä¸º8ä½æ•°æ®
+	if(BUF[4]==(u8)sum)  //æ ¡éªŒ  
+	{
+		*humi=BUF[0];
+		*temp=BUF[2];
+		return 1;    
+	}
+	else
+		return 0;    
+}
+/***-----------------------------------------------------------------------**/
+
+/***-----------------------------------------------------------------------**/
+/** 
+* @brief: æ—¶é’Ÿé€‰æ‹©
+* @param: ç»“æ„ä½“å˜é‡
+* @return:æ— 
+**/ 
+void chushi(led_d *io)
+{
+		if(io->port==GPIOA) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOA, ENABLE); 
+		else if(io->port==GPIOB) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOB, ENABLE);
+		else if(io->port==GPIOC) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOC, ENABLE);
+		else if(io->port==GPIOD) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOD, ENABLE);
+		else if(io->port==GPIOE) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOE, ENABLE);
+		else if(io->port==GPIOF) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOF, ENABLE);
+		else if(io->port==GPIOG) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
+
+}
+/***-----------------------------------------------------------------------**/
+
+
+/***-----------------------------------------------------------------------**/
+/** 
+* @brief: è¯»å–IOå£çŠ¶æ€
+* @param: ç»“æ„ä½“å˜é‡
+* @return:0ä»£è¡¨è¾“å…¥ä½ç”µå¹³
+**/ 
+u8 readpin(led_d *io)
+{
+	return GPIO_ReadInputDataBit(io->port,io->pin);
+}
+/***-----------------------------------------------------------------------**/
+

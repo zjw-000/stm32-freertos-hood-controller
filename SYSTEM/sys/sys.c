@@ -1,35 +1,35 @@
-#include "sys.h"
-
-/*
- * ÅäÖÃÎÄ¼þ
- *
- *
- * ×÷Õß£º²»¸ÊÐÄµÄÏÌÓã--ÏÐÓã/²»´î(414192836)--Ð¡ºìÊé
- * ÏÐÓãºÅ£ºtb43915564
- * ÐÞ¸ÄÈÕÆÚ£º2026/2/1
- * ÏîÄ¿ÒÑÉêÇë°æÈ¨£¬ÇëÎðµ¹Âô£¡
- */ 
- 
-//THUMBÖ¸Áî²»Ö§³Ö»ã±àÄÚÁª
-//²ÉÓÃÈçÏÂ·½·¨ÊµÏÖÖ´ÐÐ»ã±àÖ¸ÁîWFI  
-void WFI_SET(void)
-{
-	__ASM volatile("wfi");		  
-}
-//¹Ø±ÕËùÓÐÖÐ¶Ï
-void INTX_DISABLE(void)
-{		  
-	__ASM volatile("cpsid i");
-}
-//¿ªÆôËùÓÐÖÐ¶Ï
-void INTX_ENABLE(void)
-{
-	__ASM volatile("cpsie i");		  
-}
-//ÉèÖÃÕ»¶¥µØÖ·
-//addr:Õ»¶¥µØÖ·
-__asm void MSR_MSP(u32 addr) 
-{
-    MSR MSP, r0 			//set Main Stack value
-    BX r14
-}
+#include "sys.h"
+
+/*
+ * é…ç½®æ–‡ä»¶
+ *
+ *
+ * ä½œè€…ï¼šä¸ç”˜å¿ƒçš„å’¸é±¼--é—²é±¼/ä¸æ­(414192836)--å°çº¢ä¹¦
+ * é—²é±¼å·ï¼štb43915564
+ * ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
+ * é¡¹ç›®å·²ç”³è¯·ç‰ˆæƒï¼Œè¯·å‹¿å€’å–ï¼
+ */ 
+ 
+//THUMBæŒ‡ä»¤ä¸æ”¯æŒæ±‡ç¼–å†…è”
+//é‡‡ç”¨å¦‚ä¸‹æ–¹æ³•å®žçŽ°æ‰§è¡Œæ±‡ç¼–æŒ‡ä»¤WFI  
+void WFI_SET(void)
+{
+	__ASM volatile("wfi");		  
+}
+//å…³é—­æ‰€æœ‰ä¸­æ–­
+void INTX_DISABLE(void)
+{		  
+	__ASM volatile("cpsid i");
+}
+//å¼€å¯æ‰€æœ‰ä¸­æ–­
+void INTX_ENABLE(void)
+{
+	__ASM volatile("cpsie i");		  
+}
+//è®¾ç½®æ ˆé¡¶åœ°å€
+//addr:æ ˆé¡¶åœ°å€
+__asm void MSR_MSP(u32 addr) 
+{
+    MSR MSP, r0 			//set Main Stack value
+    BX r14
+}
