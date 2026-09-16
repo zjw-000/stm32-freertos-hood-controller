@@ -342,7 +342,7 @@ BaseType_t xPortStartScheduler( void )
 
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled
 	here already. */
-	vPortSetupTimerInterrupt();/*设置reload及使能systick中断--不甘心的咸鱼注*/
+	vPortSetupTimerInterrupt();/*设置reload及使能systick中断/
 
 	/* Initialise the critical nesting count ready for the first task. */
 	uxCriticalNesting = 0;
@@ -440,7 +440,7 @@ void xPortSysTickHandler( void )
 		/* Increment the RTOS tick. */
 		if( xTaskIncrementTick() != pdFALSE )/*xTaskIncrementTick()函数用于增加系统滴答计数器xTickCount的值
 		，当滴答计数器值大于阻塞时间以后，将任务从阻塞态转换为就绪态，如果延时时间到的任务优先级高于当前任务，则返回pdTrue
-		--不甘心的咸鱼注*/
+		/
 		{
 			/* A context switch is required.  Context switching is performed in
 			the PendSV interrupt.  Pend the PendSV interrupt. */
@@ -699,5 +699,4 @@ __asm uint32_t vPortGetIPSR( void )
 	}
 
 #endif /* configASSERT_DEFINED */
-
 

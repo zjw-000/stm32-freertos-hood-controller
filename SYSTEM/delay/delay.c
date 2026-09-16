@@ -4,10 +4,7 @@
  * 延时函数模块
  * 基于正点原子代码修改
  *
- * 作者：不甘心的咸鱼--闲鱼/不搭(414192836)--小红书
- * 闲鱼号：tb43915564
  * 修改日期：2026/2/1
- * 项目已申请版权，请勿倒卖！
  */
 #if SYSTEM_SUPPORT_OS
 
@@ -15,12 +12,11 @@
 #include "task.h" 
 
 #endif
- 
 
 static u8  fac_us=0;							//us延时倍乘数			   
 static u16 fac_ms=0;							//ms延时倍乘数,在ucos下,代表每个节拍的ms数
  
-extern void xPortSysTickHandler(void);//OS的心跳函数声明--不甘心的咸鱼注
+extern void xPortSysTickHandler(void);//OS的心跳函数声明
 
 //systick中断服务函数,使用os时用到
 void SysTick_Handler(void)
@@ -32,7 +28,6 @@ void SysTick_Handler(void)
     }
 }
 
-			   
 //初始化延迟函数
 //SYSTICK的时钟固定为AHB时钟，基础例程里面SYSTICK时钟频率为AHB/8
 //这里为了兼容FreeRTOS，所以将SYSTICK的时钟频率改为AHB的频率！
@@ -51,7 +46,6 @@ void delay_init()
 	SysTick->LOAD=reload; 						//每1/configTICK_RATE_HZ秒中断一次	
 	SysTick->CTRL|=SysTick_CTRL_ENABLE_Msk;   	//开启SYSTICK    
 }								    
-
 
 //延时nus
 //nus:要延时的us数.	
@@ -98,77 +92,4 @@ void delay_xms(u32 nms)
 	u32 i;
 	for(i=0;i<nms;i++) delay_us(1000);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

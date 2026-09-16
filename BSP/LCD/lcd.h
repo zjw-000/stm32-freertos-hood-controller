@@ -1,9 +1,6 @@
 /***********************
 项目名：液晶屏驱动头文件
-作者：不甘心的咸鱼--闲鱼/不搭(414192836)--小红书
-闲鱼号：tb43915564
 修改日期：2026/2/1	
-项目已申请版权，请勿倒卖！
 ************************/	
 #ifndef __LCD_H
 #define __LCD_H		
@@ -43,7 +40,6 @@ extern u16  BACK_COLOR; //背景颜色.默认为白色
 #define LCD_CS   9       //片选引脚            PB9
 #define LCD_RS   7       //寄存器/数据选择引脚 PB7 
 #define LCD_RST  8       //复位引脚            PB8
-
 
 //QDtech全系列模块采用了可控制背光设计,用户也可以接PWM调节背光亮度
 #define	LCD_LED PBout(LED) //LCD背光    		 PB6
@@ -140,8 +136,4 @@ void LCD_direction(u8 direction );
 */
 				  		 
 #endif  
-	 
-	 
-
-
 

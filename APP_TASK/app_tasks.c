@@ -2,10 +2,7 @@
  * 应用层任务源文件
  * 基于FreeRTOS的油烟机控制系统
  *
- * 作者：不甘心的咸鱼--闲鱼/不搭(414192836)--小红书
- * 闲鱼号：tb43915564
  * 修改日期：2026/2/1
- * 项目已申请版权，请勿倒卖！
  */
 #include "app_tasks.h"
 #include "delay.h"
@@ -121,22 +118,19 @@ void System_Init(void)
     g_systemState.humidity = 0;
     //气体浓度标志：0
     g_systemState.gasConcentration = 0.0f;
-    
 
-    //自动模式：计时器和Cooking Event计时器为0
+//自动模式：计时器和Cooking Event计时器为0
     g_systemState.autoModeCounter = 0;
     g_systemState.cookingEventCounter = 0;
     //Cooking Event标志：检测到1、未检测到0
     g_systemState.cookingEventActive = 0;
-    
 
-    //防回流模式标志位：激活1、未激活0
+//防回流模式标志位：激活1、未激活0
     g_systemState.antiBackflowActive = 0;
     //防回流环境：气体浓度阈值为正常阈值GAS_THRESHOLD_NORMAL = 100 
     g_systemState.gasThreshold = GAS_THRESHOLD_NORMAL;
-    
-     
-    /* 创建互斥信号量 */
+
+/* 创建互斥信号量 */
     //保护g_systemState数据结构体的访问，避免多任务同时访问导致数据不一致
     g_dataMutex = xSemaphoreCreateMutex();
     
@@ -703,7 +697,7 @@ void iap_task(void *pvParameters)
                         LCD_Clear(WHITE);               /* 清屏 */ 
 						Show_Str(0,80,BLUE,WHITE,"Firmware updating!",16,0);/*打印信息在LCD屏幕上代表正在更新*/
 
-						FLASH_ErasePage(FLASH_APP1_ADDR);/*先擦除APP区的flash，防止有数据残留--不甘心的咸鱼*/
+						FLASH_ErasePage(FLASH_APP1_ADDR);/*先擦除APP区的flash，防止有数据残留/
 
 						iap_write_appbin(FLASH_APP1_ADDR,receive_buff,firmwareLen);//更新FLASH代码（只写入固件数据，不含CRC）
 
@@ -728,7 +722,7 @@ void iap_task(void *pvParameters)
 							
 						}	
 					}
-					/*如果判断固件失败，先将接收APP数组情况，防止数据残留并重新开启DMA，用于下次更新--不甘心的咸鱼*/
+					/*如果判断固件失败，先将接收APP数组情况，防止数据残留并重新开启DMA，用于下次更新/
 					else{
 						memset(receive_buff,0,buff_size);   //清空数组
 						MYDMA_Enable(DMA1_Channel5);//开启一次DMA传输，用于下次更新

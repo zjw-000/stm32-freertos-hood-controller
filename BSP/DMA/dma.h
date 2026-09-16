@@ -14,15 +14,9 @@
 
  *
 
- * 作者：不甘心的咸鱼--闲鱼/不搭(414192836)--小红书
+* 修改日期：2026/2/1
 
- * 闲鱼号：tb43915564
-
- * 修改日期：2026/2/1
-
- * 项目已申请版权，请勿倒卖！
-
- */
+*/
 
 /*函数声明*/
 
@@ -33,4 +27,3 @@ void MYDMA_Enable(DMA_Channel_TypeDef*DMA_CHx);//使能DMA1_CHx
 uint16_t GetReceivedDataLength(void);		   
 
 #endif
-

@@ -2,10 +2,7 @@
  * 应用层任务头文件
  * 基于FreeRTOS的油烟机控制系统
  *
- * 作者：不甘心的咸鱼--闲鱼/不搭(414192836)--小红书
- * 闲鱼号：tb43915564
  * 修改日期：2026/2/1
- * 项目已申请版权，请勿倒卖！
  */
 #ifndef __APP_TASKS_H
 #define __APP_TASKS_H
@@ -69,7 +66,6 @@ typedef struct {
 #define COOKING_EVENT_TIMEOUT       60000   /* Cooking Event超时时间：60秒 */
 #define COOKING_EVENT_DELAY_OFF     10000   /* Cooking Event结束后延时关闭：10秒 */
 
-
 /*-----------------------------------------------------------
  * 任务优先级定义
  *----------------------------------------------------------*/
@@ -95,7 +91,6 @@ typedef struct {
 #define TASK_MOTOR_STK_SIZE         256     /* 电机控制任务栈大小 */
 #define TASK_SPEED_CALC_STK_SIZE    128     /* 速度计算任务栈大小 */
 #define TASK_IAP_STK_SIZE           256     /* IAP任务栈大小 */
-
 
 /*-----------------------------------------------------------
  * 函数声明

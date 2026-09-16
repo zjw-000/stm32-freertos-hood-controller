@@ -2,10 +2,7 @@
 #include "gpiox.h"
 /***********************
 *项目名：电机驱动头文件
-*作者：不甘心的咸鱼--闲鱼/不搭(414192836)--小红书
-*闲鱼号：tb43915564
 *修改日期：2026/2/1
-*项目已申请版权，请勿倒卖！
 *当前市面基本是HAL库编写的电机驱动，本驱动为手敲标准库，如果需要hal库，请查看相关资料
 ************************/  
  	 			
@@ -32,17 +29,15 @@ void TIM1_dead_pwm_init(u16 arr,u16 psc,u16 ccr,u16 dtg)
  	io_set(GPIOA,GPIO_Pin_8,GPIO_Mode_AF_PP);				// CH1输出引脚
 	io_set(GPIOB,GPIO_Pin_13,GPIO_Mode_AF_PP);				// CH1N互补输出引脚
 	io_set(GPIOB,GPIO_Pin_12,GPIO_Mode_IPU);				// 刹车输入IO初始化，上拉输入
-	
-	
-   // 初始化TIM1时基单元
+
+// 初始化TIM1时基单元
 	TIM_TimeBaseStructure.TIM_Period = arr; 					// 设置在下一个更新事件装入自动重装载寄存器周期的值
 	TIM_TimeBaseStructure.TIM_Prescaler =psc; 					// 设置用来作为TIMx时钟频率除数的预分频值 
 	TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV4; 	// CKD[1:0] = 10, tDTS = 4 * tCK_INT
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;  // TIM向上计数模式
 	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure); 			 // 根据TIM_TimeBaseInitStruct中指定的参数初始化TIMx的时间基数单位
-	
-		 
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2; // 选择定时器模式:TIM脉冲宽度调制模式2
+
+TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2; // 选择定时器模式:TIM脉冲宽度调制模式2
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High; // 输出极性:TIM输出比较极性高
 	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCPolarity_High; // 互补输出极性:TIM输出比较极性高
  	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable; // 比较输出使能
@@ -50,9 +45,8 @@ void TIM1_dead_pwm_init(u16 arr,u16 psc,u16 ccr,u16 dtg)
 	TIM_OCInitStructure.TIM_Pulse = ccr;							// 设置占空比
 	TIM_OC1Init(TIM1, &TIM_OCInitStructure);  					// 根据指定的参数初始化TIM1 OC1
 	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);  			// 使能TIM1在CCR上的预装载寄存器
-	
-	
-	/* 配置刹车和死区 */
+
+/* 配置刹车和死区 */
 	TIM_BDTRStructInit(&TIM_BDTRInitStructure);									// 将BDTR初始为默认值后初始化
 	TIM_BDTRInitStructure.TIM_DeadTime=dtg;										// 设置死区时间
     TIM_BDTRInitStructure.TIM_Break = TIM_Break_Enable;							// 使能刹车功能
@@ -63,8 +57,6 @@ void TIM1_dead_pwm_init(u16 arr,u16 psc,u16 ccr,u16 dtg)
 	TIM_Cmd(TIM1, ENABLE);  													// 使能TIM1
 }
 #endif
-
-
 
 /*
  * @brief: 直流有刷电机驱动
@@ -84,17 +76,15 @@ void TIM1_dead_pwm_init(u16 arr,u16 psc,u16 ccr,u16 dtg)
  	io_set(GPIOA,GPIO_Pin_8,GPIO_Mode_AF_PP);				// CH1输出引脚
 	io_set(GPIOB,GPIO_Pin_13,GPIO_Mode_AF_PP);				// CH1N互补输出引脚
 	io_set(GPIOA,GPIO_Pin_2,GPIO_Mode_Out_PP);				// 使能控制IO初始化，推挽输出
-	
-	
-	// 初始化TIM1时基单元
+
+// 初始化TIM1时基单元
 	TIM_TimeBaseStructure.TIM_Period = arr; 					// 设置在下一个更新事件装入自动重装载寄存器周期的值
 	TIM_TimeBaseStructure.TIM_Prescaler =psc; 					// 设置用来作为TIMx时钟频率除数的预分频值 
 	TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV4; 	// CKD[1:0] = 10, tDTS = 4 * tCK_INT
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up; // TIM向上计数模式
 	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure); 			// 根据TIM_TimeBaseInitStruct中指定的参数初始化TIMx的时间基数单位
-	
-		 
-	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1; 			// 选择定时器模式:TIM脉冲宽度调制模式1
+
+TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1; 			// 选择定时器模式:TIM脉冲宽度调制模式1
 	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High; 	// 输出极性:TIM输出比较极性高
 	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCPolarity_High; 	// 互补输出极性:TIM输出比较极性高
  	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable; 	// 比较输出使能
@@ -102,9 +92,8 @@ void TIM1_dead_pwm_init(u16 arr,u16 psc,u16 ccr,u16 dtg)
 	TIM_OCInitStructure.TIM_Pulse = ccr;							// 设置初始占空比
 	TIM_OC1Init(TIM1, &TIM_OCInitStructure);  						// 根据指定的参数初始化TIM1 OC1
 	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);  				// 使能TIM1在CCR上的预装载寄存器
-	
-	
-	/* 配置BDTR寄存器 */
+
+/* 配置BDTR寄存器 */
 	TIM_BDTRStructInit(&TIM_BDTRInitStructure);									// 将BDTR初始为默认值后初始化
 	TIM_BDTRInitStructure.TIM_DeadTime=dtg;										// 设置死区时间
 	TIM_BDTRInitStructure.TIM_OSSRState=TIM_OSSRState_Enable;					// OSSR位设置为1
@@ -116,7 +105,6 @@ void TIM1_dead_pwm_init(u16 arr,u16 psc,u16 ccr,u16 dtg)
 	TIM_CtrlPWMOutputs(TIM1, ENABLE);											// 使能MOE位
 	TIM_Cmd(TIM1, ENABLE);  													// 使能TIM1
 }
-
 
 /* 电机停止 */
 void motor_stop(void)
@@ -148,7 +136,6 @@ void motor_dir(direction para)
     }
 }
 
-
 /*电机状态初始化*/
 // 电机GPIOA初始化默认PA2输出高电平，使能驱动H桥电路，默认电机正转，默认占空比为0，电机停止
 void motor_init(void)
@@ -158,7 +145,6 @@ void motor_init(void)
 	motor_start();                                                                                
 }
 
-
 /* 电机速度调节 */
 void motor_speed(u16 ccr)
 {
@@ -167,9 +153,6 @@ void motor_speed(u16 ccr)
 		TIM_SetCompare1(TIM1,ccr);	// 设置占空比
 	}
 }
-
-
-
 
 /*电机控制*/
 void motor_pwm_set(float para)
@@ -245,8 +228,6 @@ void TIM2_encode_init(u16 arr, u16 psc)
 	
 }
 
-
-
 /* 定时器Timer4初始化，用于计算转速 */
 // 设定1ms中断一次，执行计算转速任务：统计1ms内编码器TIM2计数值的变化量，计算电机真实转速
 void TIM4_init(u16 arr,u16 psc)
@@ -272,7 +253,6 @@ void TIM4_init(u16 arr,u16 psc)
 	TIM_Cmd(TIM4, ENABLE);  										//使能定时器						 
 }
 
-
 /* 获取编码器计数值 */
 // 记录TIM2计数器的CNT计数值，结合溢出计数器overflow计算编码器的总计数值
 int get_encoder_value(void)
@@ -287,7 +267,6 @@ u8 TIM_GetDirection(TIM_TypeDef* TIMx)
 {
     return (TIMx->CR1 & TIM_CR1_DIR) ? 1 : 0;	/*在编码器模式下，定时器的计数方向变为只读*/
 }
-
 
 /* 获取电机转速。ms=50表示每50ms计算一次速度，即采样精度为50ms*/
 float get_speed(int encode_value,u16 ms)
@@ -350,7 +329,5 @@ float get_speed(int encode_value,u16 ms)
 	return speed;
 }
 
-
 /* 注意：TIM2_IRQHandler和TIM4_IRQHandler已移至app_tasks.c中
  * 原因：中断服务程序需要访问FreeRTOS信号量，统一放在应用层文件中管理 */
-

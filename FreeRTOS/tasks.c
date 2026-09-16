@@ -2125,7 +2125,7 @@ BaseType_t xAlreadyYielded = pdFALSE;
 /*-----------------------------------------------------------*/
 
 /*FreeRTOS时钟节拍统计函数，当每个时钟节拍发生，XTickCount值加一，也就是每1 ms加1
-----不甘心的咸鱼注*/
+/
 TickType_t xTaskGetTickCount( void )
 {
 TickType_t xTicks;
@@ -2519,7 +2519,7 @@ BaseType_t xSwitchRequired = pdFALSE;
 		xTickCount = xConstTickCount;
 
 		if( xConstTickCount == ( TickType_t ) 0U )/*发生溢出，因为此变量是32位无符号整数，最大值为0xFFFFFFFF，
-		当达到最大值时，再增加1就会溢出为0--不甘心的咸鱼注*/
+		当达到最大值时，再增加1就会溢出为0/
 		{
 			taskSWITCH_DELAYED_LISTS();
 		}
@@ -2872,8 +2872,7 @@ void vTaskPlaceOnUnorderedEventList( List_t * pxEventList, const TickType_t xIte
 		designed for use by kernel code, and has special calling requirements -
 		it should be called with the scheduler suspended. */
 
-
-		/* Place the event list item of the TCB in the appropriate event list.
+/* Place the event list item of the TCB in the appropriate event list.
 		In this case it is assume that this is the only task that is going to
 		be waiting on this event list, so the faster vListInsertEnd() function
 		can be used in place of vListInsert. */
@@ -3194,7 +3193,7 @@ static portTASK_FUNCTION( prvIdleTask, pvParameters )
 		to 1.  This is to ensure portSUPPRESS_TICKS_AND_SLEEP() is called when
 		user defined low power mode	implementations require
 		configUSE_TICKLESS_IDLE to be set to a value other than 1. */
-		#if ( configUSE_TICKLESS_IDLE != 0 )/*开启低功耗模式后执行下列代码块--不甘心的咸鱼*/
+		#if ( configUSE_TICKLESS_IDLE != 0 )/*开启低功耗模式后执行下列代码块/
 		{
 		TickType_t xExpectedIdleTime;
 
@@ -3981,8 +3980,7 @@ TCB_t *pxTCB;
 		 * through a call to vTaskList().
 		 */
 
-
-		/* Make sure the write buffer does not contain a string. */
+/* Make sure the write buffer does not contain a string. */
 		*pcWriteBuffer = 0x00;
 
 		/* Take a snapshot of the number of tasks in case it changes while this
@@ -4700,7 +4698,6 @@ TickType_t uxReturn;
 #endif /* configUSE_TASK_NOTIFICATIONS */
 /*-----------------------------------------------------------*/
 
-
 static void prvAddCurrentTaskToDelayedList( TickType_t xTicksToWait, const BaseType_t xCanBlockIndefinitely )
 {
 TickType_t xTimeToWake;
@@ -4812,8 +4809,6 @@ const TickType_t xConstTickCount = xTickCount;
 	#endif /* INCLUDE_vTaskSuspend */
 }
 
-
 #ifdef FREERTOS_MODULE_TEST
 	#include "tasks_test_access_functions.h"
 #endif
-
