@@ -135,7 +135,7 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 /*                                        FreeRTOS基础配置配置选项                                              */
 
 /***************************************************************************************************************/
-
+// freertos内核移植————设置抢占式内核1
 #define configUSE_PREEMPTION					1                       //1使用抢占式内核，0使用协程
 
 #define configUSE_TIME_SLICING					1						//1使能时间片调度(默认式使能的)
@@ -149,11 +149,11 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 #define configUSE_TICKLESS_IDLE					0                       //1启用低功耗tickless模式，0关闭
 
 #define configUSE_QUEUE_SETS					1                       //为1时启用队列
-
+// freertos内核移植————绑定stm32系统时钟
 #define configCPU_CLOCK_HZ						(SystemCoreClock)       //CPU频率
-
+// freertos内核移植————设置时钟节拍为1ms
 #define configTICK_RATE_HZ						(1000)                  //时钟节拍频率，这里设置为1000，周期就是1ms
-
+// freertos内核移植————设置最大优先级为32
 #define configMAX_PRIORITIES					(32)                    //可使用的最大优先级
 
 #define configMINIMAL_STACK_SIZE				((unsigned short)130)   //空闲任务使用的堆栈大小
@@ -195,7 +195,7 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 /***************************************************************************************************************/
 
 #define configSUPPORT_DYNAMIC_ALLOCATION        1                       //支持动态内存申请
-
+// freertos内核移植————设置10KB 动态堆空间
 #define configTOTAL_HEAP_SIZE					((size_t)(10*1024))     //系统所有总的堆大小/*若分配的过大会导致内存不足此处分配为10K，请根据任务需要自行划分/
 
 /***************************************************************************************************************/
@@ -321,6 +321,8 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 #define xPortPendSVHandler 	PendSV_Handler	/*将启动文件的PendSV中断变成freertos所定义的，因为启动文件能不修改则不修改*/
 
 #define vPortSVCHandler 	SVC_Handler
+
+#define xPortSysTickHandler SysTick_Handler
 
 #endif /* FREERTOS_CONFIG_H */
 

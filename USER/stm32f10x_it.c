@@ -63,7 +63,7 @@ void UsageFault_Handler(void)
   {
   }
 }
- 
+// freertos内核移植————注释标准库stm32的SVC中断函数 
 //void SVC_Handler(void)
 //{
 //}
@@ -71,11 +71,11 @@ void UsageFault_Handler(void)
 void DebugMon_Handler(void)
 {
 }
- 
+ // freertos内核移植————注释标准库stm32的PendSV中断函数 
 //void PendSV_Handler(void)
 //{
 //}
-// 
+// freertos内核移植————注释标准库stm32的SysTick中断函数 
 //void SysTick_Handler(void)
 //{
 //}

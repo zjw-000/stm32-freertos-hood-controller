@@ -84,17 +84,17 @@ void iap_load_app(u32 appxaddr)
 
     __disable_irq();/*禁用全局中断，防止异常打断*/
 
-		/*禁用外设*/
+	/*禁用外设*/
 
     DMA_Cmd(DMA1_Channel5, DISABLE);
 
     USART_Cmd(USART1, DISABLE);
 
-		/*清除中断标志位*/
+	/*清除中断标志位*/
 
     DMA_ClearITPendingBit(DMA1_IT_TC5);
 
-		USART_ClearITPendingBit(USART1, USART_IT_RXNE);
+	USART_ClearITPendingBit(USART1, USART_IT_RXNE);
 
 	/*********************************************/
 
