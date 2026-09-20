@@ -8,21 +8,21 @@
 
 /*
 
- * DMAÇı¶¯Í·ÎÄ¼ş
+ * DMAé©±åŠ¨å¤´æ–‡ä»¶
 
- * »ùÓÚFreeRTOSµÄÓÍÑÌ»ú¿ØÖÆÏµÍ³
+ * åŸºäºFreeRTOSçš„æ²¹çƒŸæœºæ§åˆ¶ç³»ç»Ÿ
 
  *
 
-* ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+* ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
 
 */
 
-/*º¯ÊıÉùÃ÷*/
+/*å‡½æ•°å£°æ˜*/
 
-void MYDMA_Config(DMA_Channel_TypeDef*DMA_CHx,u32 cpar,u32 cmar,u16 cndtr);//ÅäÖÃDMA1_CHx
+void MYDMA_Config(DMA_Channel_TypeDef*DMA_CHx,u32 cpar,u32 cmar,u16 cndtr);//é…ç½®DMA1_CHx
 
-void MYDMA_Enable(DMA_Channel_TypeDef*DMA_CHx);//Ê¹ÄÜDMA1_CHx
+void MYDMA_Enable(DMA_Channel_TypeDef*DMA_CHx);//ä½¿èƒ½DMA1_CHx
 
 uint16_t GetReceivedDataLength(void);		   
 

@@ -10,3 +10,7 @@
 JLinkLog.txt
 *.lst
 *.map
+
+# Build outputs
+OBJ/
+USER/DebugConfig/

@@ -1,8 +1,8 @@
 /*
- * Ó¦ÓÃ²ãÈÎÎñÍ·ÎÄ¼ş
- * »ùÓÚFreeRTOSµÄÓÍÑÌ»ú¿ØÖÆÏµÍ³
+ * åº”ç”¨å±‚ä»»åŠ¡å¤´æ–‡ä»¶
+ * åŸºäºFreeRTOSçš„æ²¹çƒŸæœºæ§åˆ¶ç³»ç»Ÿ
  *
- * ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+ * ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
  */
 #ifndef __APP_TASKS_H
 #define __APP_TASKS_H
@@ -17,107 +17,107 @@
 #include "iap.h"
 
 /*-----------------------------------------------------------
- * ¹¤×÷Ä£Ê½¶¨Òå
+ * å·¥ä½œæ¨¡å¼å®šä¹‰
  *----------------------------------------------------------*/
 typedef enum {
-    MODE_STANDBY = 0,       /* ´ı»úÄ£Ê½ */
-    MODE_MANUAL,            /* ÊÖ¶¯Ä£Ê½ */
-    MODE_AUTO,              /* ×Ô¶¯Ä£Ê½ */
-    MODE_ANTI_BACKFLOW      /* ·À»ØÁ÷Ä£Ê½ */
+    MODE_STANDBY = 0,       /* å¾…æœºæ¨¡å¼ */
+    MODE_MANUAL,            /* æ‰‹åŠ¨æ¨¡å¼ */
+    MODE_AUTO,              /* è‡ªåŠ¨æ¨¡å¼ */
+    MODE_ANTI_BACKFLOW      /* é˜²å›æµæ¨¡å¼ */
 } WorkMode_t;
 
 /*-----------------------------------------------------------
- * ÊÖ¶¯Ä£Ê½µµÎ»¶¨Òå
+ * æ‰‹åŠ¨æ¨¡å¼æ¡£ä½å®šä¹‰
  *----------------------------------------------------------*/
 typedef enum {
-    SPEED_LOW = 0,          /* µÍµµ */
-    SPEED_HIGH              /* ¸ßµµ */
+    SPEED_LOW = 0,          /* ä½æ¡£ */
+    SPEED_HIGH              /* é«˜æ¡£ */
 } SpeedLevel_t;
 
 /*-----------------------------------------------------------
- * ÏµÍ³×´Ì¬½á¹¹Ìå
+ * ç³»ç»ŸçŠ¶æ€ç»“æ„ä½“
  *----------------------------------------------------------*/
 typedef struct {
-    WorkMode_t currentMode;         /* µ±Ç°¹¤×÷Ä£Ê½ */
-    SpeedLevel_t speedLevel;        /* µ±Ç°µµÎ» */
-    u8 motorRunning;                /* µç»úÔËĞĞ×´Ì¬,0±íÊ¾Í£Ö¹£¬1±íÊ¾ÔËĞĞ */
+    WorkMode_t currentMode;         /* å½“å‰å·¥ä½œæ¨¡å¼ */
+    SpeedLevel_t speedLevel;        /* å½“å‰æ¡£ä½ */
+    u8 motorRunning;                /* ç”µæœºè¿è¡ŒçŠ¶æ€,0è¡¨ç¤ºåœæ­¢ï¼Œ1è¡¨ç¤ºè¿è¡Œ */
     
-    u8 temperature;                 /* ÎÂ¶ÈÖµ */
-    u8 humidity;                    /* Êª¶ÈÖµ */
-    float gasConcentration;         /* ÆøÌåÅ¨¶ÈÖµ */
+    u8 temperature;                 /* æ¸©åº¦å€¼ */
+    u8 humidity;                    /* æ¹¿åº¦å€¼ */
+    float gasConcentration;         /* æ°”ä½“æµ“åº¦å€¼ */
     
-    float windSpeedPWM;             /* ·çËÙPWMÖµ(%) */
-    float actualRPM;                /* Êµ¼Ê×ªËÙ */
-    u16 targetRPM;                  /* Ä¿±ê×ªËÙ */
+    float windSpeedPWM;             /* é£é€ŸPWMå€¼(%) */
+    float actualRPM;                /* å®é™…è½¬é€Ÿ */
+    u16 targetRPM;                  /* ç›®æ ‡è½¬é€Ÿ */
     
-    u8 cookingEventActive;          /* Cooking Event¼¤»î±êÖ¾ */
+    u8 cookingEventActive;          /* Cooking Eventæ¿€æ´»æ ‡å¿— */
     
-    u8 antiBackflowActive;          /* ·À»ØÁ÷¼¤»î±êÖ¾ */
-    float gasThreshold;             /* µ±Ç°ÆøÌåÅ¨¶ÈãĞÖµ */
+    u8 antiBackflowActive;          /* é˜²å›æµæ¿€æ´»æ ‡å¿— */
+    float gasThreshold;             /* å½“å‰æ°”ä½“æµ“åº¦é˜ˆå€¼ */
     
-    u32 autoModeCounter;            /* ×Ô¶¯Ä£Ê½Æô¶¯½×¶Î¼ÆÊ±Æ÷(ms) */
-    u32 cookingEventCounter;        /* Cooking Event¼ÆÊ±Æ÷(ms) */
+    u32 autoModeCounter;            /* è‡ªåŠ¨æ¨¡å¼å¯åŠ¨é˜¶æ®µè®¡æ—¶å™¨(ms) */
+    u32 cookingEventCounter;        /* Cooking Eventè®¡æ—¶å™¨(ms) */
 } SystemState_t;
 
 /*-----------------------------------------------------------
- * Ê±Ğò²ÎÊı¶¨Òå(ms)
+ * æ—¶åºå‚æ•°å®šä¹‰(ms)
  *----------------------------------------------------------*/
-#define AUTO_MODE_STARTUP_TIME      60000   /* ×Ô¶¯Ä£Ê½Æô¶¯µÈ´ıÊ±¼ä£º60Ãë */
-#define COOKING_EVENT_TIMEOUT       60000   /* Cooking Event³¬Ê±Ê±¼ä£º60Ãë */
-#define COOKING_EVENT_DELAY_OFF     10000   /* Cooking Event½áÊøºóÑÓÊ±¹Ø±Õ£º10Ãë */
+#define AUTO_MODE_STARTUP_TIME      60000   /* è‡ªåŠ¨æ¨¡å¼å¯åŠ¨ç­‰å¾…æ—¶é—´ï¼š60ç§’ */
+#define COOKING_EVENT_TIMEOUT       60000   /* Cooking Eventè¶…æ—¶æ—¶é—´ï¼š60ç§’ */
+#define COOKING_EVENT_DELAY_OFF     10000   /* Cooking Eventç»“æŸåå»¶æ—¶å…³é—­ï¼š10ç§’ */
 
 /*-----------------------------------------------------------
- * ÈÎÎñÓÅÏÈ¼¶¶¨Òå
+ * ä»»åŠ¡ä¼˜å…ˆçº§å®šä¹‰
  *----------------------------------------------------------*/
-#define TASK_START_PRIORITY         1       /* ¿ªÊ¼ÈÎÎñÓÅÏÈ¼¶ */
-#define TASK_UI_PRIORITY            1       /* UIÏÔÊ¾ÈÎÎñÓÅÏÈ¼¶ */
-#define TASK_ANTI_BACKFLOW_PRIORITY 2       /* ·À»ØÁ÷ÈÎÎñÓÅÏÈ¼¶ */
-#define TASK_SENSOR_PRIORITY        3       /* ´«¸ĞÆ÷²É¼¯ÈÎÎñÓÅÏÈ¼¶ */
-#define TASK_WIND_SPEED_PRIORITY    3       /* ·çËÙ¼ÆËãÈÎÎñÓÅÏÈ¼¶ */
-#define TASK_KEY_PRIORITY           4       /* °´¼üÉ¨ÃèÈÎÎñÓÅÏÈ¼¶ */
-#define TASK_MOTOR_PRIORITY         5       /* µç»ú¿ØÖÆÈÎÎñÓÅÏÈ¼¶ */
-#define TASK_SPEED_CALC_PRIORITY    6       /* ËÙ¶È¼ÆËãÈÎÎñÓÅÏÈ¼¶£¨×î¸ß£¬±£Ö¤¼°Ê±ÏìÓ¦ÖĞ¶Ï£© */
-#define TASK_IAP_PRIORITY           7       /* IAPÈÎÎñÓÅÏÈ¼¶ */
+#define TASK_START_PRIORITY         1       /* å¼€å§‹ä»»åŠ¡ä¼˜å…ˆçº§ */
+#define TASK_UI_PRIORITY            1       /* UIæ˜¾ç¤ºä»»åŠ¡ä¼˜å…ˆçº§ */
+#define TASK_ANTI_BACKFLOW_PRIORITY 2       /* é˜²å›æµä»»åŠ¡ä¼˜å…ˆçº§ */
+#define TASK_SENSOR_PRIORITY        3       /* ä¼ æ„Ÿå™¨é‡‡é›†ä»»åŠ¡ä¼˜å…ˆçº§ */
+#define TASK_WIND_SPEED_PRIORITY    3       /* é£é€Ÿè®¡ç®—ä»»åŠ¡ä¼˜å…ˆçº§ */
+#define TASK_KEY_PRIORITY           4       /* æŒ‰é”®æ‰«æä»»åŠ¡ä¼˜å…ˆçº§ */
+#define TASK_MOTOR_PRIORITY         5       /* ç”µæœºæ§åˆ¶ä»»åŠ¡ä¼˜å…ˆçº§ */
+#define TASK_SPEED_CALC_PRIORITY    6       /* é€Ÿåº¦è®¡ç®—ä»»åŠ¡ä¼˜å…ˆçº§ï¼ˆæœ€é«˜ï¼Œä¿è¯åŠæ—¶å“åº”ä¸­æ–­ï¼‰ */
+#define TASK_IAP_PRIORITY           7       /* IAPä»»åŠ¡ä¼˜å…ˆçº§ */
 
 /*-----------------------------------------------------------
- * ÈÎÎñÕ»´óĞ¡¶¨Òå
+ * ä»»åŠ¡æ ˆå¤§å°å®šä¹‰
  *----------------------------------------------------------*/
-#define TASK_START_STK_SIZE         64     /* ¿ªÊ¼ÈÎÎñÕ»´óĞ¡ */
-#define TASK_UI_STK_SIZE            256     /* UIÏÔÊ¾ÈÎÎñÕ»´óĞ¡ */
-#define TASK_ANTI_BACKFLOW_STK_SIZE 64     /* ·À»ØÁ÷ÈÎÎñÕ»´óĞ¡ */
-#define TASK_SENSOR_STK_SIZE        128     /* ´«¸ĞÆ÷²É¼¯ÈÎÎñÕ»´óĞ¡ */
-#define TASK_WIND_SPEED_STK_SIZE    64     /* ·çËÙ¼ÆËãÈÎÎñÕ»´óĞ¡ */
-#define TASK_KEY_STK_SIZE           64     /* °´¼üÉ¨ÃèÈÎÎñÕ»´óĞ¡ */
-#define TASK_MOTOR_STK_SIZE         256     /* µç»ú¿ØÖÆÈÎÎñÕ»´óĞ¡ */
-#define TASK_SPEED_CALC_STK_SIZE    128     /* ËÙ¶È¼ÆËãÈÎÎñÕ»´óĞ¡ */
-#define TASK_IAP_STK_SIZE           256     /* IAPÈÎÎñÕ»´óĞ¡ */
+#define TASK_START_STK_SIZE         64     /* å¼€å§‹ä»»åŠ¡æ ˆå¤§å° */
+#define TASK_UI_STK_SIZE            256     /* UIæ˜¾ç¤ºä»»åŠ¡æ ˆå¤§å° */
+#define TASK_ANTI_BACKFLOW_STK_SIZE 64     /* é˜²å›æµä»»åŠ¡æ ˆå¤§å° */
+#define TASK_SENSOR_STK_SIZE        128     /* ä¼ æ„Ÿå™¨é‡‡é›†ä»»åŠ¡æ ˆå¤§å° */
+#define TASK_WIND_SPEED_STK_SIZE    64     /* é£é€Ÿè®¡ç®—ä»»åŠ¡æ ˆå¤§å° */
+#define TASK_KEY_STK_SIZE           64     /* æŒ‰é”®æ‰«æä»»åŠ¡æ ˆå¤§å° */
+#define TASK_MOTOR_STK_SIZE         256     /* ç”µæœºæ§åˆ¶ä»»åŠ¡æ ˆå¤§å° */
+#define TASK_SPEED_CALC_STK_SIZE    128     /* é€Ÿåº¦è®¡ç®—ä»»åŠ¡æ ˆå¤§å° */
+#define TASK_IAP_STK_SIZE           256     /* IAPä»»åŠ¡æ ˆå¤§å° */
 
 /*-----------------------------------------------------------
- * º¯ÊıÉùÃ÷
+ * å‡½æ•°å£°æ˜
  *----------------------------------------------------------*/
-/* ÏµÍ³³õÊ¼»¯ */
+/* ç³»ç»Ÿåˆå§‹åŒ– */
 void System_Init(void);
 
-/* ´´½¨¿ªÊ¼ÈÎÎñ */
+/* åˆ›å»ºå¼€å§‹ä»»åŠ¡ */
 void StartTask_Create(void);
 
-/* ÈÎÎñº¯ÊıÉùÃ÷ */
-void StartTask(void *pvParameters);         /* ¿ªÊ¼ÈÎÎñ */
-void KeyScanTask(void *pvParameters);       /* °´¼üÉ¨ÃèÈÎÎñ */
-void SensorTask(void *pvParameters);        /* ´«¸ĞÆ÷²É¼¯ÈÎÎñ */
-void WindSpeedTask(void *pvParameters);     /* ·çËÙ¼ÆËãÈÎÎñ */
-void MotorControlTask(void *pvParameters);  /* µç»ú¿ØÖÆÈÎÎñ */
-void UIDisplayTask(void *pvParameters);     /* UIÏÔÊ¾ÈÎÎñ */
-void AntiBackflowTask(void *pvParameters);  /* ·À»ØÁ÷ÈÎÎñ */
-void SpeedCalcTask(void *pvParameters);     /* ËÙ¶È¼ÆËãÈÎÎñ£¨ÓÉTIM4ÖĞ¶Ï´¥·¢£© */
-void iap_task(void *pvParameters);           /* IAPÈÎÎñ */
+/* ä»»åŠ¡å‡½æ•°å£°æ˜ */
+void StartTask(void *pvParameters);         /* å¼€å§‹ä»»åŠ¡ */
+void KeyScanTask(void *pvParameters);       /* æŒ‰é”®æ‰«æä»»åŠ¡ */
+void SensorTask(void *pvParameters);        /* ä¼ æ„Ÿå™¨é‡‡é›†ä»»åŠ¡ */
+void WindSpeedTask(void *pvParameters);     /* é£é€Ÿè®¡ç®—ä»»åŠ¡ */
+void MotorControlTask(void *pvParameters);  /* ç”µæœºæ§åˆ¶ä»»åŠ¡ */
+void UIDisplayTask(void *pvParameters);     /* UIæ˜¾ç¤ºä»»åŠ¡ */
+void AntiBackflowTask(void *pvParameters);  /* é˜²å›æµä»»åŠ¡ */
+void SpeedCalcTask(void *pvParameters);     /* é€Ÿåº¦è®¡ç®—ä»»åŠ¡ï¼ˆç”±TIM4ä¸­æ–­è§¦å‘ï¼‰ */
+void iap_task(void *pvParameters);           /* IAPä»»åŠ¡ */
 
-/* Ä£Ê½ÇĞ»»º¯Êı */
-void System_SwitchMode(void);               /* ÇĞ»»¹¤×÷Ä£Ê½ */
-void System_SwitchSpeedLevel(void);         /* ÇĞ»»µµÎ» */
-void System_ToggleMotor(void);              /* ÇĞ»»µç»ú¿ª¹Ø */
+/* æ¨¡å¼åˆ‡æ¢å‡½æ•° */
+void System_SwitchMode(void);               /* åˆ‡æ¢å·¥ä½œæ¨¡å¼ */
+void System_SwitchSpeedLevel(void);         /* åˆ‡æ¢æ¡£ä½ */
+void System_ToggleMotor(void);              /* åˆ‡æ¢ç”µæœºå¼€å…³ */
 
-/* »ñÈ¡ÏµÍ³×´Ì¬ */
+/* è·å–ç³»ç»ŸçŠ¶æ€ */
 SystemState_t* System_GetState(void);
 
 #endif /* __APP_TASKS_H */

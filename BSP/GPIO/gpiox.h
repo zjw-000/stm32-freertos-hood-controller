@@ -1,22 +1,22 @@
 #ifndef __GPIOX_H
 #define __GPIOX_H
 /***********************
-ÏîÄ¿Ãû£ºGPIOÇı¶¯Í·ÎÄ¼ş
-ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+æ¤¤åœ­æ´°éšå¶ç´°GPIOæ¤¹åå§©æ¾¶å­˜æƒæµ 
+æ·‡é€è§„æ£©éˆç‡‚ç´°2026/2/1
 ***********************/
 #include "sys.h"
 
 typedef GPIO_TypeDef*   gpioled;
 
-/*gpioÊı¾İ½á¹¹*/
+/*gpioéç‰ˆåµç¼æ’´ç€¯*/
 typedef struct{
 		gpioled port;
 		uint16_t pin;
 }led_d;
 
-/********º¯ÊıÉùÃ÷*******/
+/********é‘èŠ¥æšŸæ¾¹ç‰ˆæ§‘*******/
 void io_set(gpioled port,u16 pin,GPIOMode_TypeDef mode);
 void io_set_bit(gpioled port,u16 pin);
 void io_reset_bit(gpioled port,u16 pin);
-/********º¯ÊıÉùÃ÷*******/
+/********é‘èŠ¥æšŸæ¾¹ç‰ˆæ§‘*******/
 #endif

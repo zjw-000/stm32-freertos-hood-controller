@@ -1,18 +1,18 @@
 #include "crc32.h"
 #include "usart.h"	
 /***********************
-��Ŀ����CRC32У������
-���ܣ�����IAP�̼�У��
-�޸����ڣ�2026/2/14
+项目名：CRC32校验驱动
+功能：用于IAP固件校验
+修改日期：2026/2/14
 
-����Ҫ�޸�˵�� - 2026/2/24��
-ԭ���ұ�����5�����󣬵���CRC32��������Python zlib.crc32()��һ��
-����������42, 43, 143, 206, 207
-��������Ϊ��׼CRC32���ұ�������ʽ0xEDB88320��
+【重要修复说明 - 2026/2/24】
+原查找表存在5处错误，导致CRC32计算结果与Python zlib.crc32()不一致
+错误索引：42, 43, 143, 206, 207
+现已修正为标准CRC32查找表（多项式0xEDB88320）
 ************************/
 
-/* CRC32���ұ�����׼CRC32����ʽ��0xEDB88320�� */
-/* ����������ֵ����Python zlib.crc32()��ȫһ�� */
+/* CRC32查找表（标准CRC32多项式：0xEDB88320） */
+/* 已修正错误值，与Python zlib.crc32()完全一致 */
 static const u32 crc32_table[256] = {
     0x00000000, 0x77073096, 0xEE0E612C, 0x990951BA, 0x076DC419, 0x706AF48F, 0xE963A535, 0x9E6495A3,
     0x0EDB8832, 0x79DCB8A4, 0xE0D5E91E, 0x97D2D988, 0x09B64C2B, 0x7EB17CBD, 0xE7B82D07, 0x90BF1D91,
@@ -49,41 +49,41 @@ static const u32 crc32_table[256] = {
 };
 
 /**
- * @brief �������ݵ�CRC32У��ֵ���õ�һ���µ�������������Ӧ����PC��
- * ���������CRCֵ��ȣ������ɹ���
- * @param data: ����ָ��
- * @param length: ���ݳ��ȣ��ֽڣ�
- * @return CRC32У��ֵ
- * @note ʹ�ñ�׼CRC32�㷨����Python��zlib.crc32()���һ��
- * @note ���������ұ�����
+ * @brief 计算数据的CRC32校验值，得到一个新的余数，该余数应该与PC端
+ * 传入的余数CRC值相等，则检验成功。
+ * @param data: 数据指针
+ * @param length: 数据长度（字节）
+ * @return CRC32校验值
+ * @note 使用标准CRC32算法，与Python的zlib.crc32()结果一致
+ * @note 已修正查找表错误
  */
 u32 CRC32_Calculate(u8 *data, u32 length)
 {
-    u32 crc = 0xFFFFFFFF;  /* ��ʼֵ */
+    u32 crc = 0xFFFFFFFF;  /* 初始值 */
     u32 i;
     
     for (i = 0; i < length; i++)
     {
-        /*CRC32�Ĳ�����㷨ʵ��ԭ����ֻҪ CRC ����ʽ����ģ���һ���ֽڴ���һ���ֽڣ���
-        �ͱ����Ȱ����ֽں͵�ǰ����״̬�ϲ���crc ^= data[i]����
-        ���ܱ�֤"ǰ�������ֽ� + ���ֽ�"��Ϊһ�����屻������
-        ������ÿ���ֽڶ�����������ƴ��*/
-        /*���Ĺ��򣺶�ÿ�����ٵ����ֽ��Ȱ����뵱ǰ CRC �ĵ� 8 λ��򣬱�ʾ��������ֽڲ�����ǰ�������
-        ������µ� 8 λ���������ӱ���ȡ�������� CRC ����Ķ���ʽ����������
-        �ٰѾ� CRC ������ 8 λ��
-        ��������������������õ��µ�������*/
+        /*CRC32的查表法算法实现原理，只要 CRC 是流式计算的（来一个字节处理一个字节），
+        就必须先把新字节和当前余数状态合并（crc ^= data[i]），
+        才能保证"前面所有字节 + 新字节"作为一个整体被处理，
+        而不是每个字节独立算余数再拼接*/
+        /*核心规则：对每个来临的新字节先把它与当前 CRC 的低 8 位异或，表示“把这个字节并到当前余数里”；
+        用这个新低 8 位当索引，从表里取出“它对 CRC 引起的多项式运算结果”；
+        再把旧 CRC 向右移 8 位；
+        最后把这两部分异或起来得到新的余数。*/
         crc = crc32_table[(crc ^ data[i]) & 0xFF] ^ (crc >> 8);
     }
     
-    return crc ^ 0xFFFFFFFF;  /* �������ֵ */
+    return crc ^ 0xFFFFFFFF;  /* 最终异或值 */
 }
 
 /**
- * @brief У��̼�CRC32
- * @param data: �̼�����ָ�루����ĩβ4�ֽ�CRC��
- * @param totalLength: �ܳ��ȣ��̼�+4�ֽ�CRC��
- * @return 1: У��ͨ��, 0: У��ʧ��
- * @note �̼���ʽ��[ԭʼ�̼�����][4�ֽ�CRC32С����]
+ * @brief 校验固件CRC32
+ * @param data: 固件数据指针（包含末尾4字节CRC）
+ * @param totalLength: 总长度（固件+4字节CRC）
+ * @return 1: 校验通过, 0: 校验失败
+ * @note 固件格式：[原始固件数据][4字节CRC32小端序]
  */
 u8 CRC32_VerifyFirmware(u8 *data, u32 totalLength)
 {
@@ -91,19 +91,19 @@ u8 CRC32_VerifyFirmware(u8 *data, u32 totalLength)
     u32 calculatedCRC;
     u32 receivedCRC;
     
-    /* ��鳤���Ƿ��㹻������Ҫ��4�ֽ�CRC�� */
+    /* 检查长度是否足够（至少要有4字节CRC） */
     if (totalLength <= 4)
     {
         return 0;
     }
     
-    /* �̼�ʵ�ʳ��� = �ܳ��� - 4�ֽ�CRC */
+    /* 固件实际长度 = 总长度 - 4字节CRC */
     firmwareLen = totalLength - 4;
     
-    /* ����̼����ݵ�CRC32 */
+    /* 计算固件数据的CRC32 */
     calculatedCRC = CRC32_Calculate(data, firmwareLen);
     
-    /* ������ĩβ��ȡCRC32��С���򣺵��ֽ���ǰ�����ֽ���Ҫ�ڵ͵�ַ�� */
+    /* 从数据末尾提取CRC32（小端序：低字节在前，低字节需要在低地址） */
     receivedCRC = (u32)data[firmwareLen] |
                   ((u32)data[firmwareLen + 1] << 8) |
                   ((u32)data[firmwareLen + 2] << 16) |
@@ -112,14 +112,14 @@ u8 CRC32_VerifyFirmware(u8 *data, u32 totalLength)
         printf("CRC32 Calculated: 0x%08X, Received: 0x%08X\r\n", calculatedCRC, receivedCRC);
 #endif    
 
-    /* �Ƚ�CRCֵ */
+    /* 比较CRC值 */
     if (calculatedCRC == receivedCRC)
     {
-        return 1;  /* У��ͨ�� */
+        return 1;  /* 校验通过 */
     }
     else
     {
-        return 0;  /* У��ʧ�� */
+        return 0;  /* 校验失败 */
 
     }
 }

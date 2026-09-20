@@ -3,23 +3,23 @@
 #include "sys.h"
 
 /***********************
-ÏîÄ¿Ãû£ºµç»úÇı¶¯Í·ÎÄ¼ş
-ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+é¡¹ç›®åï¼šç”µæœºé©±åŠ¨å¤´æ–‡ä»¶
+ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
 ************************/
 
 #include "gpiox.h"
 
-/*À©Õ¹×÷ÓÃÓò*/
-extern volatile float speed;                /* Êµ¼Ê×ªËÙ */
-extern volatile int overflow;               /* ±àÂëÆ÷Òç³ö¼ÆÊıÆ÷ */
+/*æ‰©å±•ä½œç”¨åŸŸ*/
+extern volatile float speed;                /* å®é™…è½¬é€Ÿ */
+extern volatile int overflow;               /* ç¼–ç å™¨æº¢å‡ºè®¡æ•°å™¨ */
 
-/*µç»ú×ªÏòÃ¶¾ÙÀàĞÍ*/
+/*ç”µæœºè½¬å‘æšä¸¾ç±»å‹*/
 typedef enum{
 	stright=0,
 	invert
 }direction;
 
-/*********º¯ÊıÉùÃ÷*************************/
+/*********å‡½æ•°å£°æ˜*************************/
 void io_set(gpioled port,u16 pin,GPIOMode_TypeDef mode);
 void TIM1_dead_pwm_init(u16 arr,u16 psc,u16 ccr,u16 dtg);
 void motor_stop(void);
@@ -33,6 +33,6 @@ u8 TIM_GetDirection(TIM_TypeDef* TIMx);
 float get_speed(int encode_value,u16 ms);
 void motor_pwm_set(float para);
 void motor_init(void);
-/**********º¯ÊıÉùÃ÷**************************/
+/**********å‡½æ•°å£°æ˜**************************/
 
 #endif

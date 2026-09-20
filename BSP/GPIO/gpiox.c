@@ -1,10 +1,10 @@
 #include "gpiox.h"
 /***********************
-ÏîÄ¿Ãû£ºGPIOÇı¶¯ÎÄ¼ş
-ĞŞ¸ÄÈÕÆÚ£º2026/2/1
+é¡¹ç›®åï¼šGPIOé©±åŠ¨æ–‡ä»¶
+ä¿®æ”¹æ—¥æœŸï¼š2026/2/1
 ***********************/
 
-/* GPIO³õÊ¼»¯º¯Êı */
+/* GPIOåˆå§‹åŒ–å‡½æ•° */
 void io_set(gpioled port,u16 pin,GPIOMode_TypeDef mode)
 {
 	GPIO_InitTypeDef  GPIO_InitStructure;
@@ -20,16 +20,16 @@ void io_set(gpioled port,u16 pin,GPIOMode_TypeDef mode)
 	GPIO_InitStructure.GPIO_Pin = pin;  
 	GPIO_InitStructure.GPIO_Mode = mode;  		
 	GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-	GPIO_Init(port, &GPIO_InitStructure);			// ³õÊ¼»¯GPIO
+	GPIO_Init(port, &GPIO_InitStructure);			// åˆå§‹åŒ–GPIO
 }
 
-/* ÉèÖÃGPIOÒı½ÅµçÆ½Îª¸ß */
+/* è®¾ç½®GPIOå¼•è„šç”µå¹³ä¸ºé«˜ */
 void io_set_bit(gpioled port,u16 pin)
 {
 	GPIO_SetBits(port,pin);
 }
 
-/* ÉèÖÃGPIOÒı½ÅµçÆ½ÎªµÍ */
+/* è®¾ç½®GPIOå¼•è„šç”µå¹³ä¸ºä½ */
 void io_reset_bit(gpioled port,u16 pin)
 {
 	GPIO_ResetBits(port,pin);

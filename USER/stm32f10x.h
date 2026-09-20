@@ -32,9 +32,9 @@
 
   *              - The device used in the target application
 
-  *              - To use or not the peripheral’s drivers in application code(i.e. 
+  *              - To use or not the peripheralæŠ¯ drivers in application code(i.e. 
 
-  *                code will be based on direct access to peripheral’s registers 
+  *                code will be based on direct access to peripheralæŠ¯ registers 
 
   *                rather than drivers API), this option is controlled by 
 
@@ -48,7 +48,7 @@
 
   *           - Peripheral's registers declarations and bits definition
 
-  *           - Macros to access peripheral’s registers hardware
+  *           - Macros to access peripheralæŠ¯ registers hardware
 
   *
 
@@ -100,7 +100,7 @@
 
 #endif 
 
-/*ÒÔÏÂ²¿·ÖÎª±ÊÕß×ÔĞĞ±àĞ´£¬Ö÷ÒªÊÇÎªÁËLCDÇı¶¯ÄÜÊÊÅäSTM32±ê×¼¿â/	 
+/*ä»¥ä¸‹éƒ¨åˆ†ä¸ºç¬”è€…è‡ªè¡Œç¼–å†™ï¼Œä¸»è¦æ˜¯ä¸ºäº†LCDé©±åŠ¨èƒ½é€‚é…STM32æ ‡å‡†åº“*/	 
 
 #define CR1  CTLR1
 
@@ -255,11 +255,8 @@ Tip: To avoid modifying this file each time you need to use different HSE, you
 #define __STM32F10X_STDPERIPH_VERSION_RC     (0x00) /*!< [7:0]  release candidate */ 
 
 #define __STM32F10X_STDPERIPH_VERSION       ( (__STM32F10X_STDPERIPH_VERSION_MAIN << 24)\
-
                                              |(__STM32F10X_STDPERIPH_VERSION_SUB1 << 16)\
-
                                              |(__STM32F10X_STDPERIPH_VERSION_SUB2 << 8)\
-
                                              |(__STM32F10X_STDPERIPH_VERSION_RC))
 
 /**

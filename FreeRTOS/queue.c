@@ -481,16 +481,16 @@ static void prvInitialiseNewQueue( const UBaseType_t uxQueueLength, const UBaseT
 			correctly for a generic queue, but this function is creating a
 			mutex.  Overwrite those members that need to be set differently -
 			in particular the information required for priority inheritance. */
-			pxNewQueue->pxMutexHolder = NULL;/*µ±¶ÓÁÐÓÃÓÚ»¥³âÐÅºÅÁ¿Ê±£¬½«ÆäÖ¸ÏòNULL±íÊ¾Ã»ÓÐÈÎÎñ³ÖÓÐ¸ÃÐÅºÅÁ¿*/
-			pxNewQueue->uxQueueType = queueQUEUE_IS_MUTEX;/*ÉèÖÃ¶ÓÁÐÀàÐÍÎª»¥³âÁ¿*/
+			pxNewQueue->pxMutexHolder = NULL;/*å½“é˜Ÿåˆ—ç”¨äºŽäº’æ–¥ä¿¡å·é‡æ—¶ï¼Œå°†å…¶æŒ‡å‘NULLè¡¨ç¤ºæ²¡æœ‰ä»»åŠ¡æŒæœ‰è¯¥ä¿¡å·é‡*/
+			pxNewQueue->uxQueueType = queueQUEUE_IS_MUTEX;/*è®¾ç½®é˜Ÿåˆ—ç±»åž‹ä¸ºäº’æ–¥é‡*/
 
 			/* In case this is a recursive mutex. */
-			pxNewQueue->u.uxRecursiveCallCount = 0;/*³õÊ¼»¯µÝ¹éµ÷ÓÃ¼ÆÊýÎª0*/
+			pxNewQueue->u.uxRecursiveCallCount = 0;/*åˆå§‹åŒ–é€’å½’è°ƒç”¨è®¡æ•°ä¸º0*/
 
-			traceCREATE_MUTEX( pxNewQueue );/*´´½¨»¥³âÁ¿Ê±½øÐÐ¸ú×Ù*/
+			traceCREATE_MUTEX( pxNewQueue );/*åˆ›å»ºäº’æ–¥é‡æ—¶è¿›è¡Œè·Ÿè¸ª*/
 
 			/* Start with the semaphore in the expected state. */
-			/*µ±»¥³âÐÅºÅÁ¿´´½¨³É¹¦ºóÊÍ·ÅÒ»´Î×ÊÔ´£¬Ê¹Æä³õÊ¼×´Ì¬Îª¿ÉÓÃ£¬Î´±»Õ¼ÓÃ*/
+			/*å½“äº’æ–¥ä¿¡å·é‡åˆ›å»ºæˆåŠŸåŽé‡Šæ”¾ä¸€æ¬¡èµ„æºï¼Œä½¿å…¶åˆå§‹çŠ¶æ€ä¸ºå¯ç”¨ï¼Œæœªè¢«å ç”¨*/
 			( void ) xQueueGenericSend( pxNewQueue, NULL, ( TickType_t ) 0U, queueSEND_TO_BACK );
 		}
 		else
@@ -504,14 +504,14 @@ static void prvInitialiseNewQueue( const UBaseType_t uxQueueLength, const UBaseT
 
 #if( ( configUSE_MUTEXES == 1 ) && ( configSUPPORT_DYNAMIC_ALLOCATION == 1 ) )
 
-	QueueHandle_t xQueueCreateMutex( const uint8_t ucQueueType )/*´´½¨»¥³âÁ¿º¯Êý*/
+	QueueHandle_t xQueueCreateMutex( const uint8_t ucQueueType )/*åˆ›å»ºäº’æ–¥é‡å‡½æ•°*/
 	{
 	Queue_t *pxNewQueue;
 	const UBaseType_t uxMutexLength = ( UBaseType_t ) 1, uxMutexSize = ( UBaseType_t ) 0;
 
-		/*Ê×ÏÈ´´½¨Ò»¸ö¶ÓÁÐ³¤¶ÈÎª1µÄ¶ÓÁÐ*/
+		/*é¦–å…ˆåˆ›å»ºä¸€ä¸ªé˜Ÿåˆ—é•¿åº¦ä¸º1çš„é˜Ÿåˆ—*/
 		pxNewQueue = ( Queue_t * ) xQueueGenericCreate( uxMutexLength, uxMutexSize, ucQueueType );
-		/*È»ºóµ÷ÓÃÏÂ±ßÕâ¸öº¯Êý³õÊ¼»¯»¥³âÐÅºÅÁ¿*/
+		/*ç„¶åŽè°ƒç”¨ä¸‹è¾¹è¿™ä¸ªå‡½æ•°åˆå§‹åŒ–äº’æ–¥ä¿¡å·é‡*/
 		prvInitialiseMutex( pxNewQueue );
 
 		return pxNewQueue;
@@ -750,11 +750,11 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
 			highest priority task wanting to access the queue.  If the head item
 			in the queue is to be overwritten then it does not matter if the
 			queue is full. */
-			/*ÅÐ¶Ï¶ÓÁÐÊÇ·ñÂú*/
+			/*åˆ¤æ–­é˜Ÿåˆ—æ˜¯å¦æ»¡*/
 			if( ( pxQueue->uxMessagesWaiting < pxQueue->uxLength ) || ( xCopyPosition == queueOVERWRITE ) )
 			{
 				traceQUEUE_SEND( pxQueue );
-				/*¸Ãº¯ÊýÖ÷ÒªÓÃÓÚÐ´Èë¶ÓÁÐ¡¢ÏûÏ¢Êý¼ÓÒ»²Ù×÷ÒÔ¼°»Ö¸´Ô­Ê¼ÓÅÏÈ¼¶*/
+				/*è¯¥å‡½æ•°ä¸»è¦ç”¨äºŽå†™å…¥é˜Ÿåˆ—ã€æ¶ˆæ¯æ•°åŠ ä¸€æ“ä½œä»¥åŠæ¢å¤åŽŸå§‹ä¼˜å…ˆçº§*/
 				xYieldRequired = prvCopyDataToQueue( pxQueue, pvItemToQueue, xCopyPosition );
 
 				#if ( configUSE_QUEUE_SETS == 1 )
@@ -1279,7 +1279,7 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
 					traceQUEUE_RECEIVE( pxQueue );
 
 					/* Actually removing data, not just peeking. */
-					pxQueue->uxMessagesWaiting = uxMessagesWaiting - 1;/*Ö´ÐÐÏûÏ¢Á¿¼õÒ»²Ù×÷*/
+					pxQueue->uxMessagesWaiting = uxMessagesWaiting - 1;/*æ‰§è¡Œæ¶ˆæ¯é‡å‡ä¸€æ“ä½œ*/
 
 					#if ( configUSE_MUTEXES == 1 )
 					{
@@ -1287,7 +1287,7 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
 						{
 							/* Record the information required to implement
 							priority inheritance should it become necessary. */
-							/*±£´æµ±Ç°»¥³âÁ¿µÄ³ÖÓÐÕß£¬ÓÃÓÚºóÐøÓÅÏÈ¼¶¼Ì³Ð*/
+							/*ä¿å­˜å½“å‰äº’æ–¥é‡çš„æŒæœ‰è€…ï¼Œç”¨äºŽåŽç»­ä¼˜å…ˆçº§ç»§æ‰¿*/
 							pxQueue->pxMutexHolder = ( int8_t * ) pvTaskIncrementMutexHeldCount(); /*lint !e961 Cast is not redundant as TaskHandle_t is a typedef. */
 						}
 						else
@@ -1389,7 +1389,7 @@ Queue_t * const pxQueue = ( Queue_t * ) xQueue;
 					{
 						taskENTER_CRITICAL();
 						{
-							/*Ö»ÓÐÔÚ¸ßÓÅÏÈ¼¶ÈÎÎñÓÉÓÚµÈ´ý»¥³âÁ¿±»×èÈûÊ±²ÅÈ¥ÌáÉý»ñÈ¡»¥³âÁ¿µÄµÍÓÅÏÈ¼¶ÈÎÎñµÄÓÅÏÈ¼¶*/
+							/*åªæœ‰åœ¨é«˜ä¼˜å…ˆçº§ä»»åŠ¡ç”±äºŽç­‰å¾…äº’æ–¥é‡è¢«é˜»å¡žæ—¶æ‰åŽ»æå‡èŽ·å–äº’æ–¥é‡çš„ä½Žä¼˜å…ˆçº§ä»»åŠ¡çš„ä¼˜å…ˆçº§*/
 							vTaskPriorityInherit( ( void * ) pxQueue->pxMutexHolder );
 						}
 						taskEXIT_CRITICAL();
@@ -1717,7 +1717,7 @@ UBaseType_t uxMessagesWaiting;
 			if( pxQueue->uxQueueType == queueQUEUE_IS_MUTEX )
 			{
 				/* The mutex is no longer being held. */
-				/*µ±ÊÍ·Å»¥³âÁ¿Ê±£¬Èç¹û¸ÃÈÎÎñÓÉÓÚÓÅÏÈ¼¶¼Ì³Ð±»ÌáÉýÁËÓÅÏÈ¼¶£¬¸Ãº¯ÊýÓÃÓÚ»Ö¸´ÆäÔ­Ê¼ÓÅÏÈ¼¶*/
+				/*å½“é‡Šæ”¾äº’æ–¥é‡æ—¶ï¼Œå¦‚æžœè¯¥ä»»åŠ¡ç”±äºŽä¼˜å…ˆçº§ç»§æ‰¿è¢«æå‡äº†ä¼˜å…ˆçº§ï¼Œè¯¥å‡½æ•°ç”¨äºŽæ¢å¤å…¶åŽŸå§‹ä¼˜å…ˆçº§*/
 				xReturn = xTaskPriorityDisinherit( ( void * ) pxQueue->pxMutexHolder );
 				pxQueue->pxMutexHolder = NULL;
 			}

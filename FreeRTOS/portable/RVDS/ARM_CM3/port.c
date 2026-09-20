@@ -342,7 +342,7 @@ BaseType_t xPortStartScheduler( void )
 
 	/* Start the timer that generates the tick ISR.  Interrupts are disabled
 	here already. */
-	vPortSetupTimerInterrupt();/*设置reload及使能systick中断/
+	vPortSetupTimerInterrupt();/*璁剧疆reload鍙婁娇鑳絪ystick涓鏂*/
 
 	/* Initialise the critical nesting count ready for the first task. */
 	uxCriticalNesting = 0;
@@ -438,13 +438,13 @@ void xPortSysTickHandler( void )
 	vPortRaiseBASEPRI();
 	{
 		/* Increment the RTOS tick. */
-		if( xTaskIncrementTick() != pdFALSE )/*xTaskIncrementTick()函数用于增加系统滴答计数器xTickCount的值
-		，当滴答计数器值大于阻塞时间以后，将任务从阻塞态转换为就绪态，如果延时时间到的任务优先级高于当前任务，则返回pdTrue
-		/
+		if( xTaskIncrementTick() != pdFALSE )/*xTaskIncrementTick()鍑芥暟鐢ㄤ簬澧炲姞绯荤粺婊寸瓟璁℃暟鍣▁TickCount鐨勫
+		锛屽綋婊寸瓟璁℃暟鍣ㄥ煎ぇ浜庨樆濉炴椂闂翠互鍚庯紝灏嗕换鍔′粠闃诲炴佽浆鎹涓哄氨缁鎬侊紝濡傛灉寤舵椂鏃堕棿鍒扮殑浠诲姟浼樺厛绾ч珮浜庡綋鍓嶄换鍔★紝鍒欒繑鍥瀙dTrue
+		*/
 		{
 			/* A context switch is required.  Context switching is performed in
 			the PendSV interrupt.  Pend the PendSV interrupt. */
-			portNVIC_INT_CTRL_REG = portNVIC_PENDSVSET_BIT;/*触发PendSV中断*/
+			portNVIC_INT_CTRL_REG = portNVIC_PENDSVSET_BIT;/*瑙﹀彂PendSV涓鏂*/
 		}
 	}
 	vPortClearBASEPRIFromISR();
@@ -624,8 +624,8 @@ void xPortSysTickHandler( void )
 		#endif /* configUSE_TICKLESS_IDLE */
 
 		/* Configure SysTick to interrupt at the requested rate. */
-		portNVIC_SYSTICK_LOAD_REG = ( configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ ) - 1UL;/*���õδ�ʱ����װֵ--�����ĵ�����ע*/
-		portNVIC_SYSTICK_CTRL_REG = ( portNVIC_SYSTICK_CLK_BIT | portNVIC_SYSTICK_INT_BIT | portNVIC_SYSTICK_ENABLE_BIT );/*ʹ�ܵδ�ʱ���ж�--�����ĵ�����ע*/
+		portNVIC_SYSTICK_LOAD_REG = ( configSYSTICK_CLOCK_HZ / configTICK_RATE_HZ ) - 1UL;/*锟斤拷锟矫滴达拷时锟斤拷锟斤拷装值--锟斤拷锟斤拷锟侥碉拷锟斤拷锟斤拷注*/
+		portNVIC_SYSTICK_CTRL_REG = ( portNVIC_SYSTICK_CLK_BIT | portNVIC_SYSTICK_INT_BIT | portNVIC_SYSTICK_ENABLE_BIT );/*使锟杰滴达拷时锟斤拷锟叫讹拷--锟斤拷锟斤拷锟侥碉拷锟斤拷锟斤拷注*/
 	}
 
 #endif /* configOVERRIDE_DEFAULT_TICK_CONFIGURATION */

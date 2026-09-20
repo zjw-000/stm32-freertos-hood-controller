@@ -106,7 +106,7 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 */
 
-#include <string.h>		/*·ÀÖ¹memsetº¯Êı±¨´í£¬¼ÓÉÏ¸ÃÍ·ÎÄ¼ş/
+#include <string.h>		/*é˜²æ­¢memsetå‡½æ•°æŠ¥é”™ï¼ŒåŠ ä¸Šè¯¥å¤´æ–‡ä»¶*/
 
 #ifndef INC_FREERTOS_H
 

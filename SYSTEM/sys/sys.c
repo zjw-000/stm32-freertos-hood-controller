@@ -2,19 +2,19 @@
 
 /*
 
- * �����ļ�
+ * 配置文件
 
  *
 
  *
 
-* �޸����ڣ�2026/2/1
+* 修改日期：2026/2/1
 
 */ 
 
-//THUMBָ�֧�ֻ������
+//THUMB指令不支持汇编内联
 
-//�������·���ʵ��ִ�л��ָ��WFI  
+//采用如下方法实现执行汇编指令WFI  
 
 void WFI_SET(void)
 
@@ -24,7 +24,7 @@ void WFI_SET(void)
 
 }
 
-//�ر������ж�
+//关闭所有中断
 
 void INTX_DISABLE(void)
 
@@ -34,7 +34,7 @@ void INTX_DISABLE(void)
 
 }
 
-//���������ж�
+//开启所有中断
 
 void INTX_ENABLE(void)
 
@@ -44,9 +44,9 @@ void INTX_ENABLE(void)
 
 }
 
-//����ջ����ַ
+//设置栈顶地址
 
-//addr:ջ����ַ
+//addr:栈顶地址
 
 __asm void MSR_MSP(u32 addr) 
 
