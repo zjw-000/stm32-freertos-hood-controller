@@ -49,7 +49,7 @@
             <InvalidFlash>1</InvalidFlash>
           </TargetStatus>
           <OutputDirectory>..\OBJ\</OutputDirectory>
-          <OutputName>APP</OutputName>
+          <OutputName>Bootloader</OutputName>
           <CreateExecutable>1</CreateExecutable>
           <CreateLib>0</CreateLib>
           <CreateHexFile>1</CreateHexFile>
@@ -252,7 +252,7 @@
               <IROM>
                 <Type>1</Type>
                 <StartAddress>0x8000000</StartAddress>
-                <Size>0x10000</Size>
+                <Size>0x2000</Size>
               </IROM>
               <XRAM>
                 <Type>0</Type>
@@ -424,7 +424,7 @@
               <FileType>1</FileType>
               <FilePath>..\SYSTEM\sys\sys.c</FilePath>
             </File>
-            </Files>
+          </Files>
         </Group>
         <Group>
           <GroupName>CORE</GroupName>
@@ -501,7 +501,7 @@
             </File>
           </Files>
         </Group>
-        </Groups>
+      </Groups>
     </Target>
   </Targets>
 

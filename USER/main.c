@@ -1,3 +1,5 @@
+extern void App_Confirm_Healthy(void);
+#include "w25qxx.h"
 /*
 
  * 油烟机控制系统主程序
