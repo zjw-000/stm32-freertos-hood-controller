@@ -1,44 +1,44 @@
 /***********************
 
-椤圭洰鍚嶏細SPI搴撴枃浠
+项目名：SPI库文
 
-淇鏀规棩鏈燂細2026/2/1
+改日期：2026/2/1
 
 ************************/ 
 
-//=========================================鐢垫簮鎺ョ嚎================================================//
+//=========================================电源接线================================================//
 
-//     LCD妯″潡                CH32鍗曠墖鏈
+//     LCD模块                CH32单片
 
-//      VCC          鎺        DC5V/3.3V      //鐢垫簮
+//      VCC                  DC5V/3.3V      //电源
 
-//      GND          鎺          GND          //鐢垫簮鍦
+//      GND                    GND          //电源
 
-//=======================================娑叉櫠灞忔暟鎹绾挎帴绾==========================================//
+//=======================================液晶屏数线接==========================================//
 
-//鏈妯″潡榛樿ゆ暟鎹鎬荤嚎绫诲瀷涓篠PI鎬荤嚎
+//模块默数总线类型为SPI总线
 
-//     LCD妯″潡                CH32鍗曠墖鏈    
+//     LCD模块                CH32单片    
 
-//       SDA         鎺          PA7         //娑叉櫠灞廠PI鎬荤嚎鏁版嵁鍐欎俊鍙
+//       SDA                   PA7         //液晶屏SPI总线数据写信
 
-//=======================================娑叉櫠灞忔帶鍒剁嚎鎺ョ嚎==========================================//
+//=======================================液晶屏控制线接线==========================================//
 
-//     LCD妯″潡 					      CH32鍗曠墖鏈 
+//     LCD模块 					      CH32单片 
 
-//       LED         鎺          PB6         //娑叉櫠灞忚儗鍏夋帶鍒朵俊鍙凤紝濡傛灉涓嶉渶瑕佹帶鍒讹紝鎺5V鎴3.3V
+//       LED                   PB6         //液晶屏背光控制信号，如果不需要控制，5V3.3V
 
-//       SCK         鎺          PA5         //娑叉櫠灞廠PI鎬荤嚎鏃堕挓淇″彿
+//       SCK                   PA5         //液晶屏SPI总线时钟信号
 
-//       A0          鎺          PB7         //娑叉櫠灞忔暟鎹/鍛戒护鎺у埗淇″彿
+//       A0                    PB7         //液晶屏数/命令控制信号
 
-//       RESET       鎺          PB8         //娑叉櫠灞忓嶄綅鎺у埗淇″彿
+//       RESET                 PB8         //液晶屏位控制信号
 
-//       CS          鎺          PB9         //娑叉櫠灞忕墖閫夋帶鍒朵俊鍙
+//       CS                    PB9         //液晶屏片选控制信
 
-//=========================================瑙︽懜灞忚Е鎺ョ嚎=========================================//
+//=========================================触摸屏触接线=========================================//
 
-//妯″潡涓嶅甫瑙︽懜鍔熻兘锛屼笉闇瑕佽繘琛岃Е鎽稿睆鎺ョ嚎
+//模块不带触摸功能，不要进行触摸屏接线
 
 #include "spi.h"
 
@@ -62,13 +62,13 @@ u8 SPI_WriteByte(SPI_TypeDef* SPIx,u8 Byte)
 
 {
 
-	while((SPIx->STATR&SPI_I2S_FLAG_TXE)==RESET);		//绛夊緟鍙戦佸尯绌(鐜板湪绋嬪簭鍗″湪杩欓噷璇存槑鍙戦佸尯涓嶆槸绌虹殑涓嶈兘鍙戦)  
+	while((SPIx->STATR&SPI_I2S_FLAG_TXE)==RESET);		//等待发区(现在程序卡在这里说明发区不是空的不能发)  
 
-	SPIx->DATAR=Byte;	 								//鍙戦佷竴涓猙yte   
+	SPIx->DATAR=Byte;	 								//发一个byte   
 
-	while((SPIx->STATR&SPI_I2S_FLAG_RXNE)==RESET);		//绛夊緟鎺ユ敹瀹屼竴涓猙yte  
+	while((SPIx->STATR&SPI_I2S_FLAG_RXNE)==RESET);		//等待接收完一个byte  
 
-	return SPIx->DR;          	     					//杩斿洖鏀跺埌鐨勬暟鎹			
+	return SPIx->DR;          	     					//返回收到的数			
 
 } 
 
@@ -96,7 +96,7 @@ void SPI_SetSpeed(SPI_TypeDef* SPIx,u8 SpeedSet)
 
 	SPIx->CTLR1&=0XFFC7;
 
-	if(SpeedSet==1)//楂橀
+	if(SpeedSet==1)//高
 
 	{
 
@@ -104,7 +104,7 @@ void SPI_SetSpeed(SPI_TypeDef* SPIx,u8 SpeedSet)
 
 	}
 
-	else//浣庨
+	else//低
 
 	{
 
@@ -112,7 +112,7 @@ void SPI_SetSpeed(SPI_TypeDef* SPIx,u8 SpeedSet)
 
 	}
 
-	SPIx->CTLR1|=1<<6; //SPI璁惧囦娇鑳
+	SPIx->CTLR1|=1<<6; //SPI设使
 
 } 
 
@@ -138,7 +138,7 @@ void SPI1_Init(void)
 
 	GPIO_InitTypeDef GPIO_InitStructure;
 
-//閰嶇疆SPI1绠¤剼
+//配置SPI1管脚
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO|RCC_APB2Periph_GPIOA, ENABLE);
 
@@ -150,13 +150,13 @@ void SPI1_Init(void)
 
 	GPIO_Init(GPIOA, &GPIO_InitStructure);
 
-/*PA6鍦ㄨLCD椹卞姩涓骞舵病鏈夌敤鍒帮紝鍥犱负璇GPIO鏄疭PI鐨凪ISO绾
+/*PA6在LCD驱动并没有用到，因为GPIO是SPI的MISO
 
-	涔熷氨鏄浠庢満鍚戜富鏈轰紶杈撴暟鎹鐨勭嚎锛屼絾鍦↙CD涓锛屼笉闇瑕丩CD鍚慚CU浼犺緭鏁版嵁锛
+	也就从机向主机传输数的线，但在LCD，不要LCD向MCU传输数据
 
-	鍥犳や笉鐢ㄨョ¤剼锛屾ゅ勪唬鐮佷腑瀵瑰叾鍒濆嬪寲锛屼粎浠呬负浜嗕繚鎸丼PI鐨勯┍鍔ㄤ唬鐮佸畬鏁达紝鏃犲叾浠栦綔鐢
+	因不用脚，代码中对其初化，仅仅为了保持SPI的驱动代码完整，无其他作
 
-	璇峰悇鐢ㄦ埛鎮夌煡*/
+	请各用户悉知*/
 
 	GPIO_InitStructure.GPIO_Pin =  GPIO_Pin_6;    
 
@@ -166,7 +166,7 @@ void SPI1_Init(void)
 
 	GPIO_Init(GPIOA, &GPIO_InitStructure);  
 
-//SPI1閰嶇疆閫夐」
+//SPI1配置选项
 
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_SPI1 ,ENABLE);
 
@@ -190,7 +190,7 @@ SPI_InitStructure.SPI_Direction = SPI_Direction_2Lines_FullDuplex;
 
 	SPI_Init(SPI1, &SPI_InitStructure);
 
-//浣胯兘SPI1
+//使能SPI1
 
 	SPI_Cmd(SPI1, ENABLE);   
 

@@ -2,33 +2,33 @@
 
 #include "gpiox.h"
 
-led_d dht; /* DHT11结构体变量定义 */
+led_d dht; /* DHT11ṹ */
 
 /**********************************************
 
-椤圭洰鍚嶏細DHT11椹卞姩
+项目名：DHT11驱动
 
-淇鏀规棩鏈燂細2026/2/1
+改日期：2026/2/1
 
 **********************************************/   
 
-u8  BUF[5]={0x00,0x00,0x00,0x00,0x00};    //瀛樺偍璇诲彇鐨勬俯婀垮害淇℃伅
+u8  BUF[5]={0x00,0x00,0x00,0x00,0x00};    //存储读取的温湿度信息
 
-u32 sum=0;         						  //鏍￠獙鍊
+u32 sum=0;         						  //校验
 
 /***-----------------------------------------------------------------------**/
 
 /** 
 
-* @brief: dht11寮濮嬩俊鍙
+* @brief: dht11始信
 
-* @param: 缁撴瀯浣撳彉閲
+* @param: 结构体变
 
-* @return:鏃
+* @return:
 
 **/ 
 
- void DHT11_Start(led_d *io)  //DHT11鏁版嵁杈撳叆寮曡剼PC14
+ void DHT11_Start(led_d *io)  //DHT11数据输入引脚PC14
 
 {
 
@@ -36,7 +36,7 @@ GPIO_InitTypeDef GPIO_InitStructure;
 
 chushi(io);
 
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; //鎺ㄦ尳杈撳嚭妯″紡
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP; //推挽输出模式
 
 	GPIO_InitStructure.GPIO_Pin = io->pin;
 
@@ -44,13 +44,13 @@ chushi(io);
 
 	GPIO_Init(io->port, &GPIO_InitStructure);
 
-	GPIO_ResetBits(io->port,io->pin); 					//鎷変綆鏁版嵁绾
+	GPIO_ResetBits(io->port,io->pin); 					//拉低数据
 
-	delay_ms(20);    									//鎷変綆鑷冲皯18ms
+	delay_ms(20);    									//拉低至少18ms
 
-	GPIO_SetBits(io->port,io->pin); 					//鎷夐珮鏁版嵁绾 
+	GPIO_SetBits(io->port,io->pin); 					//拉高数据 
 
-	delay_us(30);     									//涓绘満鎷夐珮20~40us
+	delay_us(30);     									//主机拉高20~40us
 
 	GPIO_ResetBits(io->port,io->pin);
 
@@ -62,11 +62,11 @@ chushi(io);
 
 /** 
 
-* @brief: 閰嶇疆io鍙
+* @brief: 配置io
 
-* @param: 缁撴瀯浣撳彉閲
+* @param: 结构体变
 
-* @return:鏃
+* @return:
 
 **/ 
 
@@ -94,9 +94,9 @@ void DHT11_Read(led_d *io)
 
 /** 
 
-* @brief: dht11璇讳竴涓瀛楄妭
+* @brief: dht11读一字节
 
-* @param: 缁撴瀯浣撳彉閲
+* @param: 结构体变
 
 * @return: readDat
 
@@ -124,13 +124,13 @@ for(i=0;i<8;i++)
 
 			delay_us(1);
 
-			t++;  //闃叉㈠崱姝
+			t++;  //防卡
 
 		}
 
 		t=0;
 
-		//鐢变簬鈥0鈥欎唬鐮侀珮鐢靛钩鏃堕棿26~28us锛1浠ｇ爜楂樼數骞虫椂闂70us锛屽欢鏃30us锛屽彲鍒ゆ柇楂樹綆鐢靛钩锛屾暟瀛0璇诲彇鍒扮殑鏄浣庣數骞筹紝楂樼數骞冲垯鍙嶄箣
+		//由于0’代码高电平时间26~28us1代码高电平时70us，延30us，可判断高低电平，数0读取到的低电平，高电平则反之
 
 		delay_us(30);
 
@@ -150,7 +150,7 @@ while(readpin(io)==1&&t<100)
 
 		t=0;
 
-		ReadDat<<=1; //宸︾Щ1浣嶏紝DHT11鏁版嵁鐢遍珮鍒颁綆鍙戦
+		ReadDat<<=1; //左移1位，DHT11数据由高到低发
 
 		ReadDat|=temp;
 
@@ -166,11 +166,11 @@ while(readpin(io)==1&&t<100)
 
 /** 
 
-* @brief: dht11閲囬泦鏁版嵁
+* @brief: dht11采集数据
 
-* @param: 缁撴瀯浣撳彉閲
+* @param: 结构体变
 
-* @return:1鎴愬姛锛0澶辫触
+* @return:1成功0失败
 
 **/ 
 
@@ -192,13 +192,13 @@ u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io)
 
 	delay_us(20);
 
-	//寤舵椂20us锛屼綆鐢靛钩80us锛岃繕鍓60us锛屾鏌ユ槸鍚︽槸浣庣數骞充互纭瀹氭槸鍚︽湁鍝嶅簲淇″彿
+	//延时20us，低电平80us，还60us，查是否是低电平以定是否有响应信号
 
-	if(readpin(io)==0)  //濡傛灉璇诲彇鍒颁綆鐢靛钩锛岃瘉鏄嶥HT11鍝嶅簲
+	if(readpin(io)==0)  //如果读取到低电平，证明DHT11响应
 
 	{
 
-		while(readpin(io)==0&&t<100)//鎺ユ敹鍝嶅簲淇″彿浣庣數骞冲墿浣60us锛岀瓑寰呭彉楂樼數骞
+		while(readpin(io)==0&&t<100)//接收响应信号低电平剩60us，等待变高电
 
 		{
 
@@ -208,9 +208,9 @@ u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io)
 
 		}
 
-		t=0;//瓒呰繃100us鑷鍔ㄥ悜涓嬭繍琛岋紝浠ュ厤鍗℃
+		t=0;//超过100us动向下运行，以免卡
 
-		while(readpin(io)==1&&t<100)//鎺ユ敹鍝嶅簲淇″彿楂樼數骞80us锛岀瓑寰呭彉浣庣數骞
+		while(readpin(io)==1&&t<100)//接收响应信号高电80us，等待变低电
 
 			{
 
@@ -222,21 +222,21 @@ u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io)
 
 		t=0;
 
-		for(i=0;i<5;i++)  //鎺ユ敹40浣嶆暟鎹
+		for(i=0;i<5;i++)  //接收40位数
 
 			{
 
-				BUF[i]=DHT_Read_Byte(io);//璇诲嚭1涓瀛楄妭
+				BUF[i]=DHT_Read_Byte(io);//读出1字节
 
 			}
 
-		delay_us(50);//缁撴潫淇″彿
+		delay_us(50);//结束信号
 
 	}
 
-	sum=BUF[0]+BUF[1]+BUF[2]+BUF[3];		// BUF[0]锛氭箍搴︽暣鏁板 BUF[1]锛氭箍搴﹀皬鏁板 BUF[2]锛氭俯搴︽暣鏁板 BUF[3]锛氭俯搴﹀皬鏁板 BUF[4]锛氭牎楠屼綅锛岄兘涓8浣嶆暟鎹
+	sum=BUF[0]+BUF[1]+BUF[2]+BUF[3];		// BUF[0]：湿度整数 BUF[1]：湿度小数 BUF[2]：温度整数 BUF[3]：温度小数 BUF[4]：校验位，都8位数
 
-	if(BUF[4]==(u8)sum)  //鏍￠獙  
+	if(BUF[4]==(u8)sum)  //校验  
 
 	{
 
@@ -260,11 +260,11 @@ u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io)
 
 /** 
 
-* @brief: 鏃堕挓閫夋嫨
+* @brief: 时钟选择
 
-* @param: 缁撴瀯浣撳彉閲
+* @param: 结构体变
 
-* @return:鏃
+* @return:
 
 **/ 
 
@@ -294,11 +294,11 @@ void chushi(led_d *io)
 
 /** 
 
-* @brief: 璇诲彇IO鍙ｇ姸鎬
+* @brief: 读取IO口状
 
-* @param: 缁撴瀯浣撳彉閲
+* @param: 结构体变
 
-* @return:0浠ｈ〃杈撳叆浣庣數骞
+* @return:0代表输入低电
 
 **/ 
 

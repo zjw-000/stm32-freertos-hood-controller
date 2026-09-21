@@ -1,22 +1,22 @@
 #ifndef __GPIOX_H
 #define __GPIOX_H
 /***********************
-椤圭洰鍚嶏細GPIO椹卞姩澶存枃浠
-淇鏀规棩鏈燂細2026/2/1
+项目名：GPIO驱动头文
+改日期：2026/2/1
 ***********************/
 #include "sys.h"
 
 typedef GPIO_TypeDef*   gpioled;
 
-/*gpio鏁版嵁缁撴瀯*/
+/*gpio数据结构*/
 typedef struct{
 		gpioled port;
 		uint16_t pin;
 }led_d;
 
-/********鍑芥暟澹版槑*******/
+/********函数声明*******/
 void io_set(gpioled port,u16 pin,GPIOMode_TypeDef mode);
 void io_set_bit(gpioled port,u16 pin);
 void io_reset_bit(gpioled port,u16 pin);
-/********鍑芥暟澹版槑*******/
+/********函数声明*******/
 #endif

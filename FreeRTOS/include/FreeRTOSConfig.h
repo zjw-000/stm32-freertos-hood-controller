@@ -114,7 +114,7 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 #include "usart.h"
 
-//閽堝逛笉鍚岀殑缂栬瘧鍣ㄨ皟鐢ㄤ笉鍚岀殑stdint.h鏂囦欢
+//针不同的编译器调用不同的stdint.h文件
 
 #if defined(__ICCARM__) || defined(__CC_ARM) || defined(__GNUC__)
 
@@ -124,7 +124,7 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 #endif
 
-//鏂瑷
+//
 
 #define vAssertCalled(char,int) printf("Error:%s,%d\r\n",char,int)
 
@@ -132,93 +132,93 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 /***************************************************************************************************************/
 
-/*                                        FreeRTOS鍩虹閰嶇疆閰嶇疆閫夐」                                              */
+/*                                        FreeRTOS基配置配置选项                                              */
 
 /***************************************************************************************************************/
-// freertos鍐呮牳绉绘嶁斺斺斺旇剧疆鎶㈠崰寮忓唴鏍1
-#define configUSE_PREEMPTION					1                       //1浣跨敤鎶㈠崰寮忓唴鏍革紝0浣跨敤鍗忕▼
+// freertos内核移置抢占式内1
+#define configUSE_PREEMPTION					1                       //1使用抢占式内核，0使用协程
 
-#define configUSE_TIME_SLICING					1						//1浣胯兘鏃堕棿鐗囪皟搴(榛樿ゅ紡浣胯兘鐨)
+#define configUSE_TIME_SLICING					1						//1使能时间片调(默式使能)
 
-#define configUSE_PORT_OPTIMISED_TASK_SELECTION	1                       //1鍚鐢ㄧ壒娈婃柟娉曟潵閫夋嫨涓嬩竴涓瑕佽繍琛岀殑浠诲姟
+#define configUSE_PORT_OPTIMISED_TASK_SELECTION	1                       //1用特殊方法来选择下一要运行的任务
 
-                                                                        //涓鑸鏄纭浠惰＄畻鍓嶅奸浂鎸囦护锛屽傛灉鎵浣跨敤鐨
+                                                                        //件算前零指令，果使用
 
-                                                                        //MCU娌℃湁杩欎簺纭浠舵寚浠ょ殑璇濇ゅ畯搴旇ヨ剧疆涓0锛
+                                                                        //MCU没有这些件指令的话宏应置0
 
-#define configUSE_TICKLESS_IDLE					0                       //1鍚鐢ㄤ綆鍔熻梩ickless妯″紡锛0鍏抽棴
+#define configUSE_TICKLESS_IDLE					0                       //1用低功tickless模式0关闭
 
-#define configUSE_QUEUE_SETS					1                       //涓1鏃跺惎鐢ㄩ槦鍒
-// freertos鍐呮牳绉绘嶁斺斺斺旂粦瀹歴tm32绯荤粺鏃堕挓
-#define configCPU_CLOCK_HZ						(SystemCoreClock)       //CPU棰戠巼
-// freertos鍐呮牳绉绘嶁斺斺斺旇剧疆鏃堕挓鑺傛媿涓1ms
-#define configTICK_RATE_HZ						(1000)                  //鏃堕挓鑺傛媿棰戠巼锛岃繖閲岃剧疆涓1000锛屽懆鏈熷氨鏄1ms
-// freertos鍐呮牳绉绘嶁斺斺斺旇剧疆鏈澶т紭鍏堢骇涓32
-#define configMAX_PRIORITIES					(32)                    //鍙浣跨敤鐨勬渶澶т紭鍏堢骇
+#define configUSE_QUEUE_SETS					1                       //1时启用队
+// freertos内核移绑定stm32系统时钟
+#define configCPU_CLOCK_HZ						(SystemCoreClock)       //CPU频率
+// freertos内核移置时钟节拍1ms
+#define configTICK_RATE_HZ						(1000)                  //时钟节拍频率，这里置1000，周期就1ms
+// freertos内核移置大优先级32
+#define configMAX_PRIORITIES					(32)                    //使用的最大优先级
 
-#define configMINIMAL_STACK_SIZE				((unsigned short)130)   //绌洪棽浠诲姟浣跨敤鐨勫爢鏍堝ぇ灏
+#define configMINIMAL_STACK_SIZE				((unsigned short)130)   //空闲任务使用的堆栈大
 
-#define configMAX_TASK_NAME_LEN					(16)                    //浠诲姟鍚嶅瓧瀛楃︿覆闀垮害
+#define configMAX_TASK_NAME_LEN					(16)                    //任务名字字串长度
 
-#define configUSE_16_BIT_TICKS					0                       //绯荤粺鑺傛媿璁℃暟鍣ㄥ彉閲忔暟鎹绫诲瀷锛
+#define configUSE_16_BIT_TICKS					0                       //系统节拍计数器变量数类型
 
-                                                                        //1琛ㄧず涓16浣嶆棤绗﹀彿鏁村舰锛0琛ㄧず涓32浣嶆棤绗﹀彿鏁村舰
+                                                                        //1表示16位无符号整形0表示32位无符号整形
 
-#define configIDLE_SHOULD_YIELD					1                       //涓1鏃剁┖闂蹭换鍔℃斁寮僀PU浣跨敤鏉冪粰鍏朵粬鍚屼紭鍏堢骇鐨勭敤鎴蜂换鍔
+#define configIDLE_SHOULD_YIELD					1                       //1时空闲任务放弃CPU使用权给其他同优先级的用户任
 
-#define configUSE_TASK_NOTIFICATIONS            1                       //涓1鏃跺紑鍚浠诲姟閫氱煡鍔熻兘锛岄粯璁ゅ紑鍚
+#define configUSE_TASK_NOTIFICATIONS            1                       //1时开任务通知功能，默认开
 
-#define configUSE_MUTEXES						1                       //涓1鏃朵娇鐢ㄤ簰鏂ヤ俊鍙烽噺
+#define configUSE_MUTEXES						1                       //1时使用互斥信号量
 
-#define configQUEUE_REGISTRY_SIZE				8                       //涓嶄负0鏃惰〃绀哄惎鐢ㄩ槦鍒楄板綍锛屽叿浣撶殑鍊兼槸鍙浠
+#define configQUEUE_REGISTRY_SIZE				8                       //不为0时表示启用队列录，具体的值是
 
-                                                                        //璁板綍鐨勯槦鍒楀拰淇″彿閲忔渶澶ф暟鐩銆
+                                                                        //记录的队列和信号量最大数
 
-#define configCHECK_FOR_STACK_OVERFLOW			0                       //澶т簬0鏃跺惎鐢ㄥ爢鏍堟孩鍑烘娴嬪姛鑳斤紝濡傛灉浣跨敤姝ゅ姛鑳
+#define configCHECK_FOR_STACK_OVERFLOW			0                       //大于0时启用堆栈溢出测功能，如果使用此功
 
-                                                                        //鐢ㄦ埛蹇呴』鎻愪緵涓涓鏍堟孩鍑洪挬瀛愬嚱鏁帮紝濡傛灉浣跨敤鐨勮瘽
+                                                                        //用户必须提供栈溢出钩子函数，如果使用的话
 
-                                                                        //姝ゅ煎彲浠ヤ负1鎴栬2锛屽洜涓烘湁涓ょ嶆爤婧㈠嚭妫娴嬫柟娉曘
+                                                                        //此可以为1或2，因为有两栈溢出测方法
 
-#define configUSE_RECURSIVE_MUTEXES				1                       //涓1鏃朵娇鐢ㄩ掑綊浜掓枼淇″彿閲
+#define configUSE_RECURSIVE_MUTEXES				1                       //1时使用归互斥信号
 
-#define configUSE_MALLOC_FAILED_HOOK			0                       //1浣跨敤鍐呭瓨鐢宠峰け璐ラ挬瀛愬嚱鏁
+#define configUSE_MALLOC_FAILED_HOOK			0                       //1使用内存申失败钩子函
 
 #define configUSE_APPLICATION_TASK_TAG			0                       
 
-#define configUSE_COUNTING_SEMAPHORES			1                       //涓1鏃朵娇鐢ㄨ℃暟淇″彿閲
+#define configUSE_COUNTING_SEMAPHORES			1                       //1时使用数信号
 
 /***************************************************************************************************************/
 
-/*                                FreeRTOS涓庡唴瀛樼敵璇锋湁鍏抽厤缃閫夐」                                                */
+/*                                FreeRTOS与内存申请有关配选项                                                */
 
 /***************************************************************************************************************/
 
-#define configSUPPORT_DYNAMIC_ALLOCATION        1                       //鏀鎸佸姩鎬佸唴瀛樼敵璇
-// freertos鍐呮牳绉绘嶁斺斺斺旇剧疆10KB 鍔ㄦ佸爢绌洪棿
-#define configTOTAL_HEAP_SIZE					((size_t)(10*1024))     //绯荤粺鎵鏈夋荤殑鍫嗗ぇ灏/*鑻ュ垎閰嶇殑杩囧ぇ浼氬艰嚧鍐呭瓨涓嶈冻姝ゅ勫垎閰嶄负10K锛岃锋牴鎹浠诲姟闇瑕佽嚜琛屽垝鍒/
+#define configSUPPORT_DYNAMIC_ALLOCATION        1                       //持动态内存申
+// freertos内核移置10KB 动堆空间
+#define configTOTAL_HEAP_SIZE					((size_t)(10*1024))     //系统有的堆大/*若分配的过大会致内存不足此分配为10K，根任务要自行划/
 
 /***************************************************************************************************************/
 
-/*                                FreeRTOS涓庨挬瀛愬嚱鏁版湁鍏崇殑閰嶇疆閫夐」                                              */
+/*                                FreeRTOS与钩子函数有关的配置选项                                              */
 
 /***************************************************************************************************************/
 
-#define configUSE_IDLE_HOOK						0                       //1锛屼娇鐢ㄧ┖闂查挬瀛愶紱0锛屼笉浣跨敤
+#define configUSE_IDLE_HOOK						0                       //1，使用空闲钩子；0，不使用
 
-#define configUSE_TICK_HOOK						0                       //1锛屼娇鐢ㄦ椂闂寸墖閽╁瓙锛0锛屼笉浣跨敤
-
-/***************************************************************************************************************/
-
-/*                                FreeRTOS涓庤繍琛屾椂闂村拰浠诲姟鐘舵佹敹闆嗘湁鍏崇殑閰嶇疆閫夐」                                 */
+#define configUSE_TICK_HOOK						0                       //1，使用时间片钩子0，不使用
 
 /***************************************************************************************************************/
 
-#define configGENERATE_RUN_TIME_STATS	        0                       //涓1鏃跺惎鐢ㄨ繍琛屾椂闂寸粺璁″姛鑳斤紝/*璇ラ」鐩娌＄敤鍒帮紝鍥犳ゅ叧闂/
+/*                                FreeRTOS与运行时间和任务状收集有关的配置选项                                 */
 
-#define configUSE_TRACE_FACILITY				1                       //涓1鍚鐢ㄥ彲瑙嗗寲璺熻釜璋冭瘯
+/***************************************************************************************************************/
 
-#define configUSE_STATS_FORMATTING_FUNCTIONS	1                       //涓庡畯configUSE_TRACE_FACILITY鍚屾椂涓1鏃朵細缂栬瘧涓嬮潰3涓鍑芥暟
+#define configGENERATE_RUN_TIME_STATS	        0                       //1时启用运行时间统计功能，/*该项没用到，因关/
+
+#define configUSE_TRACE_FACILITY				1                       //1用可视化跟踪调试
+
+#define configUSE_STATS_FORMATTING_FUNCTIONS	1                       //与宏configUSE_TRACE_FACILITY同时1时会编译下面3函数
 
                                                                         //prvWriteNameToBuffer(),vTaskList(),
 
@@ -226,31 +226,31 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 /***************************************************************************************************************/
 
-/*                                FreeRTOS涓庡崗绋嬫湁鍏崇殑閰嶇疆閫夐」                                                  */
+/*                                FreeRTOS与协程有关的配置选项                                                  */
 
 /***************************************************************************************************************/
 
-#define configUSE_CO_ROUTINES 			        0                       //涓1鏃跺惎鐢ㄥ崗绋嬶紝鍚鐢ㄥ崗绋嬩互鍚庡繀椤绘坊鍔犳枃浠禼routine.c
+#define configUSE_CO_ROUTINES 			        0                       //1时启用协程，用协程以后必须添加文件croutine.c
 
-#define configMAX_CO_ROUTINE_PRIORITIES         ( 2 )                   //鍗忕▼鐨勬湁鏁堜紭鍏堢骇鏁扮洰
-
-/***************************************************************************************************************/
-
-/*                                FreeRTOS涓庤蒋浠跺畾鏃跺櫒鏈夊叧鐨勯厤缃閫夐」                                            */
+#define configMAX_CO_ROUTINE_PRIORITIES         ( 2 )                   //协程的有效优先级数目
 
 /***************************************************************************************************************/
 
-#define configUSE_TIMERS				        1                               //涓1鏃跺惎鐢ㄨ蒋浠跺畾鏃跺櫒
-
-#define configTIMER_TASK_PRIORITY		        (configMAX_PRIORITIES-1)        //杞浠跺畾鏃跺櫒浼樺厛绾
-
-#define configTIMER_QUEUE_LENGTH		        5                               //杞浠跺畾鏃跺櫒闃熷垪闀垮害
-
-#define configTIMER_TASK_STACK_DEPTH	        (configMINIMAL_STACK_SIZE*2)    //杞浠跺畾鏃跺櫒浠诲姟鍫嗘爤澶у皬
+/*                                FreeRTOS与软件定时器有关的配选项                                            */
 
 /***************************************************************************************************************/
 
-/*                                FreeRTOS鍙閫夊嚱鏁伴厤缃閫夐」                                                      */
+#define configUSE_TIMERS				        1                               //1时启用软件定时器
+
+#define configTIMER_TASK_PRIORITY		        (configMAX_PRIORITIES-1)        //件定时器优先
+
+#define configTIMER_QUEUE_LENGTH		        5                               //件定时器队列长度
+
+#define configTIMER_TASK_STACK_DEPTH	        (configMINIMAL_STACK_SIZE*2)    //件定时器任务堆栈大小
+
+/***************************************************************************************************************/
+
+/*                                FreeRTOS选函数配选项                                                      */
 
 /***************************************************************************************************************/
 
@@ -276,21 +276,21 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 /***************************************************************************************************************/
 
-/*                                浣庡姛鑰楃浉鍏抽厤缃锛屾湰椤圭洰鏈鐢ㄥ埌浣庡姛鑰楋紝鍥犳ゅ叧闂                                 */
+/*                                低功耗相关配，本项目用到低功耗，因关                                 */
 
 /***************************************************************************************************************/
 
 #if configUSE_TICKLESS_IDLE 
 
-	#define configPRE_SLEEP_PROCESSING(x)   PRE_SLEEP_PROCESSING(x)  /* 杩涘叆浣庡姛鑰楀墠鍑嗗囧嚱鏁 */
+	#define configPRE_SLEEP_PROCESSING(x)   PRE_SLEEP_PROCESSING(x)  /* 进入低功耗前准函 */
 
-	#define configPOST_SLEEP_PROCESSING(x)  POST_SLEEP_PROCESSING(x) /* 閫鍑轰綆鍔熻楀墠鍑嗗囧嚱鏁 */
+	#define configPOST_SLEEP_PROCESSING(x)  POST_SLEEP_PROCESSING(x) /* 出低功前准函 */
 
 #endif
 
 /***************************************************************************************************************/
 
-/*                                FreeRTOS涓庝腑鏂鏈夊叧鐨勯厤缃閫夐」                                                  */
+/*                                FreeRTOS与中有关的配选项                                                  */
 
 /***************************************************************************************************************/
 
@@ -300,13 +300,13 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 #else
 
-	#define configPRIO_BITS       		4     /*鐢ㄤ簬璁剧疆MCU浣跨敤鍑犱綅浼樺厛绾,鐢变簬FREERTOS涓嶆敮鎸佷簹浼樺厛绾х殑绠＄悊锛屽洜姝ら渶瑕佸皢鍏惰剧疆涓4*/             
+	#define configPRIO_BITS       		4     /*用于设置MCU使用几位优先,由于FREERTOS不支持亚优先级的管理，因此需要将其置4*/             
 
 #endif
 
-#define configLIBRARY_LOWEST_INTERRUPT_PRIORITY			15                      //涓鏂鏈浣庝紭鍏堢骇
+#define configLIBRARY_LOWEST_INTERRUPT_PRIORITY			15                      //低优先级
 
-#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY	3                       //绯荤粺鍙绠＄悊鐨勬渶楂樹腑鏂浼樺厛绾э紝楂樹簬姝や紭鍏堢骇鐨勪腑鏂锛宖reertos涓嶈兘灞忚斀锛屼篃涓嶈兘璋冪敤api
+#define configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY	3                       //系统管理的最高中优先级，高于此优先级的中，freertos不能屏蔽，也不能调用api
 
 #define configKERNEL_INTERRUPT_PRIORITY 		( configLIBRARY_LOWEST_INTERRUPT_PRIORITY << (8 - configPRIO_BITS) )
 
@@ -314,15 +314,15 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 /***************************************************************************************************************/
 
-/*                                FreeRTOS涓庝腑鏂鏈嶅姟鍑芥暟鏈夊叧鐨勯厤缃閫夐」                                          */
+/*                                FreeRTOS与中服务函数有关的配选项                                          */
 
 /***************************************************************************************************************/
 
-#define xPortPendSVHandler 	PendSV_Handler	/*灏嗗惎鍔ㄦ枃浠剁殑PendSV涓鏂鍙樻垚freertos鎵瀹氫箟鐨勶紝鍥犱负鍚鍔ㄦ枃浠惰兘涓嶄慨鏀瑰垯涓嶄慨鏀*/
+#define xPortPendSVHandler 	PendSV_Handler	/*将启动文件的PendSV变成freertos定义的，因为动文件能不修改则不修*/
 
 #define vPortSVCHandler 	SVC_Handler
 
-// #define xPortSysTickHandler SysTick_Handler /* 正点原子架构下SysTick_Handler在SYSTEM/delay/delay.c中实现并手动调用xPortSysTickHandler()，不可在此宏重命名避免与port.c重复定义 */
+// #define xPortSysTickHandler SysTick_Handler /* ԭӼܹSysTick_HandlerSYSTEM/delay/delay.cʵֲֶxPortSysTickHandler()ڴ˺port.cظ */
 
 #endif /* FREERTOS_CONFIG_H */
 
