@@ -1329,7 +1329,8 @@ void App_Confirm_Healthy(void)
         #endif
     }
 }
-
+
+
 void iap_task(void *pvParameters)
 
 {
@@ -1337,6 +1338,7 @@ void iap_task(void *pvParameters)
 	uint16_t receivedLength;
 
 	u32 firmwareLen;  /* 实际固件长度（不含CRC） */
+	BootMeta_t meta;
 
 	while(1)
 
@@ -1424,7 +1426,6 @@ void iap_task(void *pvParameters)
                         #endif
                         
                         /* 3. 更新升级元数据 (设置 PENDING 状态) */
-                        BootMeta_t meta;
                         memset(&meta, 0, sizeof(BootMeta_t));
                         meta.magic = BOOT_MAGIC_NUM;
                         meta.firmware_len = firmwareLen;
@@ -1440,10 +1441,6 @@ void iap_task(void *pvParameters)
 
                         /* 4. 触发硬件复位，由 Bootloader 执行老固件备份与新固件刷写 */
                         NVIC_SystemReset();
-					}
-
-						}	
-
 					}
 
 					/*如果判断固件失败，先将接收APP数组情况，防止数据残留并重新开启DMA，用于下次更新*/

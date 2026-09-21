@@ -74,7 +74,7 @@
 
 PID_TypeDef g_speedPID;             /* 閫熷害鐜疨ID鎺у埗鍣 */
 
-led_d bep;							/*beep缁撴瀯浣撳彉閲/
+led_d bep;							/* beep 结构体变量 */
 
 extern led_d dht;							/*DHT11缁撴瀯浣撳彉閲*/
 

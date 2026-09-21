@@ -10,7 +10,7 @@
 /* 发送/接收一个字节 (复用工程已有 SPI1) */
 static uint8_t W25QXX_SPI_ReadWriteByte(uint8_t TxData)
 {
-    return SPI_WriteByte(TxData);
+    return SPI_WriteByte(SPI1, TxData);
 }
 
 /* 开启写使能 WEL */

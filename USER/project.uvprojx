@@ -340,7 +340,7 @@
               <MiscControls></MiscControls>
               <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER</Define>
               <Undefine></Undefine>
-              <IncludePath>..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\CORE;..\STM32F10x_FWLib\inc;..\FreeRTOS\include;..\FreeRTOS\portable\RVDS\ARM_CM3;..\BSP\BEEP;..\BSP\DHT11;..\BSP\DMA;..\BSP\EXTI;..\BSP\IAP;..\BSP\KEY;..\BSP\LCD;..\BSP\SPI;..\BSP\STMFLASH;..\BSP\MOTOR;..\BSP\GPIO;..\BSP\PID;..\BSP\MQ2;..\BSP\WIND;..\APP_TASK;..\BSP\KEY;..\BSP\CRC32</IncludePath>
+              <IncludePath>..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\CORE;..\STM32F10x_FWLib\inc;..\FreeRTOS\include;..\FreeRTOS\portable\RVDS\ARM_CM3;..\BSP\BEEP;..\BSP\DHT11;..\BSP\DMA;..\BSP\EXTI;..\BSP\IAP;..\BSP\KEY;..\BSP\LCD;..\BSP\SPI;..\BSP\STMFLASH;..\BSP\MOTOR;..\BSP\GPIO;..\BSP\PID;..\BSP\MQ2;..\BSP\WIND;..\APP_TASK;..\BSP\KEY;..\BSP\CRC32;..\BSP\W25QXX;..\Shared</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -479,11 +479,10 @@
               <FileType>1</FileType>
               <FilePath>..\BSP\CRC32\crc32.c</FilePath>
             </File>
-          
             <File>
               <FileName>w25qxx.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\BSP\W25QXX;..\Shared\w25qxx.c</FilePath>
+              <FilePath>..\BSP\W25QXX\w25qxx.c</FilePath>
             </File>
           </Files>
         </Group>
