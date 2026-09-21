@@ -14,3 +14,14 @@ JLinkLog.txt
 # Build outputs
 OBJ/
 USER/DebugConfig/
+
+build.log
+.obsidian/
+tools/UartAssist.cfg
+*/OBJ/
+tests/*/OBJ/
+*DebugConfig/
+**/DebugConfig/
+*.htm
+*.lnp
+*.sct
