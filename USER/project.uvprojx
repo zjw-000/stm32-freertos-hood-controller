@@ -479,6 +479,12 @@
               <FileType>1</FileType>
               <FilePath>..\BSP\CRC32\crc32.c</FilePath>
             </File>
+          
+            <File>
+              <FileName>w25qxx.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\BSP\W25QXX\w25qxx.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
