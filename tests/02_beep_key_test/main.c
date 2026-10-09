@@ -62,6 +62,7 @@ static void usart1_init_bare(uint32_t baud)
     USART_Cmd(USART1, ENABLE);
 }
 
+
 /* printf 重定向到串口发送 */
 int fputc(int ch, FILE *f)
 {

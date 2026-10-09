@@ -5,6 +5,19 @@
  *   1. MQ-2 烟雾与可燃气体传感器 (模拟量输出 AO -> 接入单片机 PA4 ADC1 通道4)
  *   2. DHT11 温湿度一体化传感器 (单总线 Single-Wire 接口 -> 接入单片机 PC14)
  *
+	STM32 3.3V  -> DHT11 VCC
+	STM32 GND  -> DHT11 GND
+	STM32 PC14 -> DHT11 DATA
+
+	STM32 5V   -> MQ-2 VCC
+	STM32 GND  -> MQ-2 GND
+	MQ-2 AO    -> PA4（确认AO≤3.3V后直连；否则经分压）
+	MQ-2 DO    -> 不接
+
+	USB-TTL GND -> STM32 GND
+	USB-TTL RXD -> STM32 PA9
+	USB-TTL TXD -> STM32 PA10
+ 
  * 【写给初学者的大编写思路】：
  * 1. 为什么油烟机需要这两个传感器？
  *    - MQ-2：检测厨房烹饪产生的油烟或煤气泄漏。烟雾浓度超标时，油烟机可自动开机排风；
@@ -101,7 +114,7 @@ int main(void)
         gas_ppm = MQ2_GetGasConcentration();
 
         /* 读取 DHT11 单总线数据：发送微秒起始波形、解码 40bit 并进行校验和核验 */
-        ret = DHT_Read_Data(&temp, &humi, GPIOC, 14, &dht);
+        ret = DHT_Read_Data(&temp, &humi, GPIOC, GPIO_Pin_14, &dht);
 
         /* 串口格式化输出环境参数 */
         printf("[ENV] Gas ADC: %4d, Gas Conc: %6.2f PPM | DHT11: Temp=%d C, Humi=%d %% (Status=%s)\r\n",

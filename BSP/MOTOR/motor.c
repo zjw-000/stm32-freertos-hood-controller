@@ -71,37 +71,42 @@ void TIM1_dead_pwm_init(u16 arr,u16 psc,u16 ccr,u16 dtg)
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	TIM_OCInitTypeDef  TIM_OCInitStructure;
 	TIM_BDTRInitTypeDef TIM_BDTRInitStructure;
+
+	/* Initialize all Standard Peripheral Library fields before overrides. */
+	// 新增：先让结构体每个成员都有确定的默认值
+	TIM_TimeBaseStructInit(&TIM_TimeBaseStructure);
+	TIM_OCStructInit(&TIM_OCInitStructure);
 	
 	RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);	// 使能定时器1时钟
- 	io_set(GPIOA,GPIO_Pin_8,GPIO_Mode_AF_PP);				// CH1输出引脚
-	io_set(GPIOB,GPIO_Pin_13,GPIO_Mode_AF_PP);				// CH1N互补输出引脚
+ 	io_set(GPIOA,GPIO_Pin_8,GPIO_Mode_AF_PP);				// 复用推挽输出，定时器控制CH1输出引脚
+	io_set(GPIOB,GPIO_Pin_13,GPIO_Mode_AF_PP);				// 复用推挽输出，定时器控制CH1N互补输出引脚
 	io_set(GPIOA,GPIO_Pin_2,GPIO_Mode_Out_PP);				// 使能控制IO初始化，推挽输出
 
-// 初始化TIM1时基单元
+	// 初始化TIM1时基单元
 	TIM_TimeBaseStructure.TIM_Period = arr; 					// 设置在下一个更新事件装入自动重装载寄存器周期的值
 	TIM_TimeBaseStructure.TIM_Prescaler =psc; 					// 设置用来作为TIMx时钟频率除数的预分频值 
 	TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV4; 	// CKD[1:0] = 10, tDTS = 4 * tCK_INT
 	TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up; // TIM向上计数模式
 	TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure); 			// 根据TIM_TimeBaseInitStruct中指定的参数初始化TIMx的时间基数单位
-
-TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM1; 			// 选择定时器模式:TIM脉冲宽度调制模式1
-	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High; 	// 输出极性:TIM输出比较极性高
-	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCPolarity_High; 	// 互补输出极性:TIM输出比较极性高
+  // 改动：PWM1（旧），光耦使驱动板实际接收到的逻辑反相，因此使用 PWM2 补偿
+	TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_PWM2; 			// PWM2 规则：CNT≥CCR（300~999）属于**有效区间**
+	TIM_OCInitStructure.TIM_OCPolarity = TIM_OCPolarity_High; 	// 输出极性:当处于有效区间时，引脚输出高电平
+	TIM_OCInitStructure.TIM_OCNPolarity = TIM_OCPolarity_High; 	// 互补输出极性:当处于有效区间时，引脚输出高电平
  	TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Enable; 	// 比较输出使能
 	TIM_OCInitStructure.TIM_OutputNState = TIM_OutputNState_Enable;	// 互补输出使能
 	TIM_OCInitStructure.TIM_Pulse = ccr;							// 设置初始占空比
 	TIM_OC1Init(TIM1, &TIM_OCInitStructure);  						// 根据指定的参数初始化TIM1 OC1
 	TIM_OC1PreloadConfig(TIM1, TIM_OCPreload_Enable);  				// 使能TIM1在CCR上的预装载寄存器
 
-/* 配置BDTR寄存器 */
+	/* 配置BDTR寄存器 */
 	TIM_BDTRStructInit(&TIM_BDTRInitStructure);									// 将BDTR初始为默认值后初始化
 	TIM_BDTRInitStructure.TIM_DeadTime=dtg;										// 设置死区时间
 	TIM_BDTRInitStructure.TIM_OSSRState=TIM_OSSRState_Enable;					// OSSR位设置为1
 	TIM_BDTRInitStructure.TIM_OSSIState=TIM_OSSIState_Disable;					// OSSI位设置为0
-    TIM_BDTRInitStructure.TIM_Break = TIM_Break_Disable;						// 注意：在本例程中没有用到刹车
-    TIM_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_Low; 			// BKIN低电平触发刹车
-    TIM_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Enable;		// 使能AOE位，刹车后自动恢复输出
-    TIM_BDTRConfig(TIM1, &TIM_BDTRInitStructure);								// BDTR初始化
+  TIM_BDTRInitStructure.TIM_Break = TIM_Break_Disable;						// 注意：在本例程中没有用到刹车
+  TIM_BDTRInitStructure.TIM_BreakPolarity = TIM_BreakPolarity_Low; 			// BKIN低电平触发刹车
+  TIM_BDTRInitStructure.TIM_AutomaticOutput = TIM_AutomaticOutput_Enable;		// 使能AOE位，刹车后自动恢复输出
+  TIM_BDTRConfig(TIM1, &TIM_BDTRInitStructure);								// BDTR初始化
 	TIM_CtrlPWMOutputs(TIM1, ENABLE);											// 使能MOE位
 	TIM_Cmd(TIM1, ENABLE);  													// 使能TIM1
 }
@@ -176,9 +181,9 @@ void motor_pwm_set(float para)
 // 设定编码器模式，使用TIM2的CH1和CH2通道对霍尔编码器输出的脉冲进行有效计数
 void TIM2_encode_init(u16 arr, u16 psc)
 {
-    TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
-    TIM_ICInitTypeDef  TIM_ICInitStructure;
-    NVIC_InitTypeDef  NVIC_InitStructure;
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+  TIM_ICInitTypeDef  TIM_ICInitStructure;
+  NVIC_InitTypeDef  NVIC_InitStructure;
 	
 	/* 使能TIM2时钟和GPIO */
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);	// 使能定时器2时钟
@@ -189,24 +194,24 @@ void TIM2_encode_init(u16 arr, u16 psc)
 	/* 配置定时器参数 */
 	// 2. 定时器基础配置：ARR设为0xFFFF(65535)，不分频(psc=0)——时基单元
 	TIM_TimeBaseStructure.TIM_Period = arr; 				//占空比
-    TIM_TimeBaseStructure.TIM_Prescaler = psc;       		//分频系数
-    TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;	//时钟不分割
-    TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+  TIM_TimeBaseStructure.TIM_Prescaler = psc;       		//分频系数
+  TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;	//时钟不分割
+  TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
 	
 	/* 配置编码器，此处选择4倍频，需要TI1(A相)和TI2(B相)进行计数 */
 	// 3. 配置输入捕获通道与滤波器（去毛刺滤波）
 	TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;				// 选择CH1			
 	TIM_ICInitStructure.TIM_ICFilter = 10;							// 输入滤波器
-    TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising; 	// 选择是否反相，不反相——检测上升沿
-    TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;	// 选择输入通道，对应寄存器CCIS[1:0]——选择直接方式
-    TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;			// 不分频，每一个边沿触发一次捕获
+  TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising; 	// 选择是否反相，不反相——检测上升沿
+  TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;	// 选择输入通道，对应寄存器CCIS[1:0]——选择直接方式
+  TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;			// 不分频，每一个边沿触发一次捕获
 	TIM_ICInit(TIM2,&TIM_ICInitStructure);							// 初始化TIM2输入捕获接口
 	
 	TIM_ICInitStructure.TIM_Channel = TIM_Channel_2;				// 选择CH2			
 	TIM_ICInitStructure.TIM_ICFilter = 10;							// 输入滤波器
-    TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising; 	// 选择是否反相，不反相——检测上升沿
-    TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;	// 选择输入通道，对应寄存器CCIS[1:0]——选择直接方式
-    TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;			// 不分频，每一个边沿触发一次捕获
+  TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising; 	// 选择是否反相，不反相——检测上升沿
+  TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;	// 选择输入通道，对应寄存器CCIS[1:0]——选择直接方式
+  TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;			// 不分频，每一个边沿触发一次捕获
 	TIM_ICInit(TIM2,&TIM_ICInitStructure);							// 初始化TIM2输入捕获接口
 	
 	/* 配置编码器接口，选择TI1和TI2同时计数 */
@@ -214,6 +219,10 @@ void TIM2_encode_init(u16 arr, u16 psc)
 	// 编码器模式除了滤波功能，其它TIM2的CH1和CH2通道配置都会被覆盖，从只检测上升沿变为检测上升沿和下降沿，计数模式变为4倍频计数模式
 	TIM_EncoderInterfaceConfig(TIM2, TIM_EncoderMode_TI12, TIM_ICPolarity_Rising, TIM_ICPolarity_Rising);
 	
+	/* TIM_TimeBaseInit() generates an update event. Do not count that
+	 * initialization event as an encoder wrap. */
+	TIM_ClearFlag(TIM2, TIM_FLAG_Update);
+
 	/* 配置TIM2中断，因为计数器为65536，可能会溢出所以配置中断 */
 	// 5. 开启TIM2更新中断（防止计数值超过65535溢出丢失）
 	NVIC_InitStructure.NVIC_IRQChannel = TIM2_IRQn;  				// TIM2中断

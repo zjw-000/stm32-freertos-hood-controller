@@ -2,7 +2,8 @@
  * 模块硬件自检工程: 01_w25q64_test
  * 芯片: STM32F103C8T6 (64KB 片内 Flash, 20KB SRAM)
  * 硬件外设: 片外 SPI-Flash 存储芯片 (Winbond W25Q64, 容量 8MB / 64Mbit)
- *
+ *| VCC | GND | CS | SCK | DO | DI |
+ *| 3.3V| GND |PB12| PA5 | PA6| PA7|
  * 【写给初学者的大编写思路】：
  * 1. 为什么要测片外 Flash？
  *    在油烟机控制系统或 OTA 固件升级中，片内 64KB Flash 空间极度紧张。

@@ -52,7 +52,7 @@ void W25QXX_Init(void)
     SPI1_Init();
 }
 
-/* 擦除一个 4KB 扇区 */
+/* 擦除一个 W25Q64 最小可擦除块4KB 扇区 */
 void W25QXX_Erase_Sector(uint32_t Dst_Addr)
 {
     Dst_Addr *= 4096; // 换算成字节物理基地址

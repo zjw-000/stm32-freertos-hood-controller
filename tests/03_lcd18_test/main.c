@@ -2,7 +2,8 @@
  * 模块硬件自检工程: 03_lcd18_test
  * 芯片: STM32F103C8T6
  * 外设: 1.8 寸 TFT-LCD 显示屏 (驱动芯片: ST7735 / 分辨率: 128x160 像素 / RGB565 色彩)
- *
+ * VCC | GND | GND | NC | NC | NC | CLK | SDA | RS | RST | CS
+ * 3.3V| GND | 不接|不接|不接|不接| PA5 | PA7 | PB7| PB8 | PB9
  * 【写给初学者的大编写思路】：
  * 1. 硬件通信原理：
  *    - TFT-LCD 显示屏通常采用 4 线或 5 线串行 SPI 接口（SCK、SDA/MOSI、RES复位、DC数据/命令选择、CS片选）。

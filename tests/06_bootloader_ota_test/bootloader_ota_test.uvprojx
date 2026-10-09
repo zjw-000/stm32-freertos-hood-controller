@@ -37,7 +37,7 @@
           <bCustSvd>0</bCustSvd>
           <UseEnv>0</UseEnv>
           <BinPath></BinPath>
-              <IncludePath>..\..\SYSTEM\sys;..\..\USER;..\..\CORE;..\..\STM32F10x_FWLib\inc;..\..\BSP\IAP;..\..\BSP\STMFLASH;..\..\BSP\DMA;..\..\BSP\CRC32;..\..\BSP\SPI;..\..\BSP\W25QXX;..\..\BSP\GPIO;..\..\Shared;..\common</IncludePath>
+          <IncludePath>..\..\SYSTEM\sys;..\..\USER;..\..\CORE;..\..\STM32F10x_FWLib\inc;..\..\BSP\IAP;..\..\BSP\STMFLASH;..\..\BSP\DMA;..\..\BSP\CRC32;..\..\BSP\SPI;..\..\BSP\W25QXX;..\..\BSP\GPIO;..\..\Shared;..\common</IncludePath>
           <LibPath></LibPath>
           <RegisterFilePath></RegisterFilePath>
           <DBRegisterFilePath></DBRegisterFilePath>

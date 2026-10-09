@@ -35,6 +35,19 @@
 volatile int overflow = 0;
 volatile float speed = 0.0f;
 
+/* Extend TIM2's 16-bit quadrature count in this bare-metal test. */
+void TIM2_IRQHandler(void)
+{
+    if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET) {
+        TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+        if (TIM_GetDirection(TIM2) == 0) {
+            overflow++;
+        } else {
+            overflow--;
+        }
+    }
+}
+
 /*
  * 【初学者友好 - 串口配置说明】
  * 串口 USART1 初始化 (PA9->TX, PA10->RX, 波特率 115200 8-N-1)
@@ -45,7 +58,7 @@ static void usart1_init_bare(uint32_t baud)
     USART_InitTypeDef USART_InitStructure;
 
     RCC_APB2PeriphClockCmd(RCC_APB2Periph_USART1 | RCC_APB2Periph_GPIOA, ENABLE);
-
+	
     GPIO_InitStructure.GPIO_Pin = GPIO_Pin_9;
     GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_PP;
     GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;

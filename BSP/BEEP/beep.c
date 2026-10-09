@@ -26,7 +26,7 @@ void Beep_Init(led_d *io,gpioled port,u16 pin)
 	else if(port==GPIOF) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOF, ENABLE);
 	else if(port==GPIOG) RCC_APB2PeriphClockCmd(RCC_APB2Periph_GPIOG, ENABLE);
 
-io->port=port;
+	io->port=port;
 	io->pin=pin;
 	
 	Beep_config(io);

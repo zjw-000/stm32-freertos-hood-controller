@@ -52,8 +52,6 @@ chushi(io);
 
 	delay_us(30);     									//主机拉高20~40us
 
-	GPIO_ResetBits(io->port,io->pin);
-
 }
 
 /***-----------------------------------------------------------------------**/
@@ -77,8 +75,9 @@ void DHT11_Read(led_d *io)
 	GPIO_InitTypeDef GPIO_InitStructure;
 
 	chushi(io);
+	GPIO_SetBits(io->port, io->pin);
 
-	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING; 
+	GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
 
 	GPIO_InitStructure.GPIO_Pin = io->pin;
 
@@ -86,6 +85,22 @@ void DHT11_Read(led_d *io)
 
 	GPIO_Init(io->port, &GPIO_InitStructure);
 
+}
+
+/* Wait at most timeout_us for the bus to reach the requested logic level. */
+static u8 DHT11_Wait_Level(led_d *io, u8 level, u8 timeout_us)
+{
+	while (timeout_us > 0)
+	{
+		if (readpin(io) == level)
+		{
+			return 1;
+		}
+		delay_us(1);
+		timeout_us--;
+	}
+
+	return (readpin(io) == level) ? 1 : 0;
 }
 
 /***-----------------------------------------------------------------------**/
@@ -102,62 +117,38 @@ void DHT11_Read(led_d *io)
 
 **/ 
 
+static u8 dht11_read_error = 0;
+
 u8 DHT_Read_Byte(led_d *io)
-
 {
+	u8 read_data = 0;
+	u8 bit_value;
+	u8 i;
 
-	u8 temp;  
-
-	u8 ReadDat=0; 
-
-	u8 t = 0;
-
-	u8 i; 
-
-for(i=0;i<8;i++)
-
+	for (i = 0; i < 8; i++)
 	{
-
-		while(readpin(io)==0&&t<100)  
-
-		{		
-
-			delay_us(1);
-
-			t++;  //防卡
-
+		/* Each data bit starts low and must then rise within 100 us. */
+		if (DHT11_Wait_Level(io, 1, 100) == 0)
+		{
+			dht11_read_error = 1;
+			return 0;
 		}
 
-		t=0;
-
-		//由于0’代码高电平时间26~28us1代码高电平时70us，延30us，可判断高低电平，数0读取到的低电平，高电平则反之
-
+		/* 0 stays high for about 26 us; 1 stays high for about 70 us. */
 		delay_us(30);
+		bit_value = readpin(io);
 
-		temp=0;
-
-		if(readpin(io)==1) temp=1;		
-
-while(readpin(io)==1&&t<100)
-
-		{		
-
-			delay_us(1);
-
-			t++;
-
+		/* Both bit waveforms must return low before the next bit starts. */
+		if (DHT11_Wait_Level(io, 0, 100) == 0)
+		{
+			dht11_read_error = 1;
+			return 0;
 		}
 
-		t=0;
+		read_data = (u8)((read_data << 1) | bit_value);
+	}
 
-		ReadDat<<=1; //左移1位，DHT11数据由高到低发
-
-		ReadDat|=temp;
-
-	}	
-
-	return ReadDat;
-
+	return read_data;
 }
 
 /***-----------------------------------------------------------------------**/
@@ -180,11 +171,17 @@ u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io)
 
 	u8 i;
 
-	u8 t = 0;
-
 	io->port=port;
 
 	io->pin=pin;
+	BUF[0] = 0;
+	BUF[1] = 0;
+	BUF[2] = 0;
+	BUF[3] = 0;
+	BUF[4] = 0;
+	*temp = 0;
+	*humi = 0;
+	dht11_read_error = 0;
 
 	DHT11_Start(io);
 
@@ -192,47 +189,30 @@ u8 DHT_Read_Data(u8 *temp,u8 *humi,gpioled port,u16 pin,led_d *io)
 
 	delay_us(20);
 
-	//延时20us，低电平80us，还60us，查是否是低电平以定是否有响应信号
-
-	if(readpin(io)==0)  //如果读取到低电平，证明DHT11响应
-
+	/* DHT11 must answer with low, then high, then low before data begins. */
+	if (DHT11_Wait_Level(io, 0, 100) == 0)
 	{
-
-		while(readpin(io)==0&&t<100)//接收响应信号低电平剩60us，等待变高电
-
-		{
-
-			delay_us(1);
-
-			t++;			
-
-		}
-
-		t=0;//超过100us动向下运行，以免卡
-
-		while(readpin(io)==1&&t<100)//接收响应信号高电80us，等待变低电
-
-			{
-
-				delay_us(1);
-
-				t++;			
-
-			}
-
-		t=0;
-
-		for(i=0;i<5;i++)  //接收40位数
-
-			{
-
-				BUF[i]=DHT_Read_Byte(io);//读出1字节
-
-			}
-
-		delay_us(50);//结束信号
-
+		return 0;
 	}
+	if (DHT11_Wait_Level(io, 1, 100) == 0)
+	{
+		return 0;
+	}
+	if (DHT11_Wait_Level(io, 0, 100) == 0)
+	{
+		return 0;
+	}
+
+	for (i = 0; i < 5; i++)
+	{
+		BUF[i] = DHT_Read_Byte(io);
+		if (dht11_read_error != 0)
+		{
+			return 0;
+		}
+	}
+
+	delay_us(50);
 
 	sum=BUF[0]+BUF[1]+BUF[2]+BUF[3];		// BUF[0]：湿度整数 BUF[1]：湿度小数 BUF[2]：温度整数 BUF[3]：温度小数 BUF[4]：校验位，都8位数
 
