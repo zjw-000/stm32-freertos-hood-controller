@@ -25,3 +25,9 @@ tests/*/OBJ/
 *.htm
 *.lnp
 *.sct
+
+# Python / 主机侧离线自测产物（源码进库，二进制产物不进库）
+__pycache__/
+*.pyc
+tools/host_test/*.exe
+tools/host_tests/*.exe
