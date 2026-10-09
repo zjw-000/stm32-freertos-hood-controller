@@ -44,13 +44,31 @@
 
 #include "boot_config.h"
 
+#include "boot_crc.h"
+
+#include "boot_meta.h"
+
+#include "iap_proto.h"
+
 #include "crc32.h"
+
+#include "sha256.h"			/* A档 P3: HMAC-SHA256 验签 */
+
+#include "iap_hmac_key.h"	/* A档 P3: 预共享密钥 */
 
 #include <stdio.h>
 
 #include <string.h>
 
 #include "usart.h"	
+
+/* 【A档 P4】看门狗：初始化 + 喂狗任务（定义在本文件后半部分） */
+void Iwdg_Init_1s(void);
+void WatchdogTask(void *pvParameters);
+
+/* 【A档 P0】APP 自检转正（定义在本文件后半部分，StartTask 里会调用） */
+void App_Confirm_Healthy(void);
+static uint8_t App_SelfTest(void);
 
 
 
@@ -97,6 +115,8 @@ static TaskHandle_t xSpeedCalcTaskHandle = NULL;
 	static TaskHandle_t xIAPTaskHandle = NULL;
 
 #endif
+
+static TaskHandle_t xWdtTaskHandle = NULL;      /* A档P4: 看门狗任务句柄 */
 
 
 
@@ -316,6 +336,36 @@ void StartTask_Create(void)
 
 /*-----------------------------------------------------------
 
+ * A档 P4: 独立看门狗(IWDG) + 任务心跳
+
+ *----------------------------------------------------------*/
+volatile uint16_t g_taskHeartbeat = 0U;     /* 各任务心跳位 */
+volatile uint16_t g_wdtMissMask  = 0U;      /* 未到齐的心跳位（保留现场，便于定位卡死任务） */
+
+#define IWDG_KR_RELOAD   0x0000AAAAU        /* 喂狗 */
+#define IWDG_KR_ENABLE   0x0000CCCCU        /* 启动（启动后无法关闭） */
+#define IWDG_KR_WRITE    0x00005555U        /* 解锁 PR/RLR */
+
+/* 把 IWDG 配成 1s 超时：LSI≈40kHz，PR=4(64分频) -> 625Hz，RLR=625 -> 1s
+ *
+ * 为什么直接写寄存器而不是用 BSP 的 iwdg.c？
+ *   1. 工程没把 stm32f10x_iwdg.c 加进 Keil 文件组，直接写寄存器不增链接依赖；
+ *   2. 只有 4 个寄存器，代码量远小于调用库函数。
+ * 注意：IWDG 一旦启动就关不掉；BL 跳 APP 前已启动(1s)，这里只是重配 + 先喂一次。 */
+void Iwdg_Init_1s(void)
+{
+    IWDG->KR  = IWDG_KR_WRITE;      /* 解锁 PR/RLR 写保护 */
+    IWDG->PR  = 4U;                 /* 预分频 = 64 */
+    IWDG->RLR = 625U;               /* 重装载值 = 625 */
+    while (IWDG->SR != 0U)          /* 等 PR/RLR 同步完成(PVU/RVU) */
+    {
+    }
+    IWDG->KR  = IWDG_KR_RELOAD;     /* 先喂一次，避免配置过程被复位 */
+    IWDG->KR  = IWDG_KR_ENABLE;     /* 启动看门狗（已启动时写该值无副作用） */
+}
+
+/*-----------------------------------------------------------
+
  * 开始任务 - 创建其他任务
 
  *----------------------------------------------------------*/
@@ -323,6 +373,11 @@ void StartTask_Create(void)
 void StartTask(void *pvParameters)
 
 {
+
+    /* 【A档 P4】尽早重配并喂一次看门狗：
+     * Bootloader 跳转前已启动 IWDG(1s)，APP 从复位向量跑到这里若超过 1s 就会被复位，
+     * 所以第一件事就是重配成 1s 并喂狗，把启动时间余量抢回来。 */
+    Iwdg_Init_1s();
 
     taskENTER_CRITICAL();   /* 进入临界区 */
 
@@ -410,6 +465,14 @@ void StartTask(void *pvParameters)
 
     
 
+    /* 【A档 P4】创建看门狗任务（放在最后创建：等其它任务都进循环后才有意义） */
+
+    xTaskCreate(WatchdogTask, "WDT", TASK_WDT_STK_SIZE, NULL,
+
+                TASK_WDT_PRIORITY, &xWdtTaskHandle);
+
+    
+
     /* 初始化TIM4定时器（必须在信号量创建后调用，避免HardFault）
 
      * 参数：5-1=4, 14400-1=14399
@@ -426,6 +489,23 @@ void StartTask(void *pvParameters)
 
     
 
+    /* 【A档 P0】系统已跑起来：自检通过就"转正"。
+     *
+     * 为什么必须有这一步（面试可讲）：
+     *   Bootloader 把新固件搬进 APP 区后，ota_state 置为 TESTING、confirmed=0，
+     *   意思是"先让你试跑，跑不活就回滚"。APP 必须在自己确认健康后调用本函数，
+     *   把状态清回 IDLE 并置 confirmed=1；否则每次开机 Bootloader 都把
+     *   boot_retry_cnt +1，第 4 次开机就判定新固件是坏的，把好固件回滚掉。
+     *   旧代码只有函数定义、零调用点，属于典型的"功能写了但没接上线"。 */
+
+    if (App_SelfTest() != 0U)
+
+    {
+
+        App_Confirm_Healthy();
+
+    }
+
     /* 删除开始任务 */
 
     vTaskDelete(xStartTaskHandle);
@@ -433,6 +513,53 @@ void StartTask(void *pvParameters)
 }
 
 
+
+/*-----------------------------------------------------------
+
+ * A档 P4: 看门狗喂狗任务 - 周期1s, 优先级8
+
+ * 设计要点（面试可讲）：
+ *   1. 喂狗的不是"每个任务各喂各的"，而是本任务统一喂：只有所有周期任务的
+ *      心跳位都到齐才喂。这样"某个任务卡死"和"某个任务忘了喂狗"都能被发现。
+ *   2. 本任务自己不置心跳位 —— 它要是卡死了狗自然没人喂，硬件复位，
+ *      不存在"看门狗任务死了还在喂狗"的假象。
+ *   3. 升级会话期间无条件喂狗：W25QXX 擦除最坏要几百 ms 甚至数秒，
+ *      此时用任务心跳判断会误判成卡死、把升级中途打断（真实踩过的坑）。
+ *----------------------------------------------------------*/
+void WatchdogTask(void *pvParameters)
+{
+    (void)pvParameters;
+
+    while (1)
+    {
+        /* 先睡 1s：给其它任务一整轮时间置位心跳（所有任务周期都 <= 100ms） */
+        vTaskDelay(pdMS_TO_TICKS(1000));
+
+        if (g_iapUpgradeActive != 0U)
+        {
+            /* 升级中：片外 Flash 擦写可能长时间占用 CPU/总线，不做任务级判定 */
+            g_taskHeartbeat = 0U;
+            g_wdtMissMask    = 0U;
+            IWDG->KR = IWDG_KR_RELOAD;
+            continue;
+        }
+
+        if (g_taskHeartbeat == HB_ALL)
+        {
+            g_wdtMissMask = 0U;
+            g_taskHeartbeat = 0U;       /* 清位，下一轮重新收集 */
+            IWDG->KR = IWDG_KR_RELOAD;  /* 全员健在，喂狗 */
+        }
+        else
+        {
+            /* 有心跳位没到齐：本周期不喂狗。
+             * 1s 后 IWDG 硬件复位；复位前把缺的位存进 g_wdtMissMask，
+             * 便于在调试器里看到是哪个任务卡死了。 */
+            g_wdtMissMask = (uint16_t)(HB_ALL & (~g_taskHeartbeat));
+            g_taskHeartbeat = 0U;
+        }
+    }
+}
 
 /*-----------------------------------------------------------
 
@@ -451,6 +578,8 @@ void KeyScanTask(void *pvParameters)
     while (1)
 
     {
+
+        g_taskHeartbeat |= HB_KEYSCAN;   /* A档P4: 报告我还在跑 */
 
         /* 扫描按键 */
 
@@ -632,6 +761,8 @@ void SensorTask(void *pvParameters)
 
     {
 
+        g_taskHeartbeat |= HB_SENSOR;   /* A档P4: 报告我还在跑 */
+
         /* 读取DHT11数据 */
 
         ret = DHT_Read_Data(&temp,&humi,GPIOC, GPIO_Pin_14, &dht);
@@ -710,6 +841,8 @@ void WindSpeedTask(void *pvParameters)
 
     {
 
+        g_taskHeartbeat |= HB_WINDSPEED;   /* A档P4: 报告我还在跑 */
+
         /* 获取传感器数据 */
 
         if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
@@ -787,6 +920,8 @@ void MotorControlTask(void *pvParameters)
         // CCR=0表示PWM占空比为0%，CCR=MAXCCR表示PWM占空比为100%
 
         u16 pwmCompare = 0;
+
+        g_taskHeartbeat |= HB_MOTOR;   /* A档P4: 报告电机任务还在跑（必须放在变量声明之后，C90 不允许声明出现在语句之后） */
 
 
 
@@ -1124,6 +1259,8 @@ void UIDisplayTask(void *pvParameters)
 
     {
 
+        g_taskHeartbeat |= HB_UI;   /* A档P4: 报告我还在跑 */
+
         /* 显示当前模式 */
 
         /*该函数用于数字转字符串，或者是构建复杂字符串，如最后一个参数值是manual,则dispBuf的结果为Mode:manual*/
@@ -1217,6 +1354,8 @@ void AntiBackflowTask(void *pvParameters)
     while (1)
 
     {
+
+        g_taskHeartbeat |= HB_ANTIBACKFLOW;   /* A档P4: 报告我还在跑 */
 
         /* 判断是否是防回流模式 */
 
@@ -1313,160 +1452,415 @@ void AntiBackflowTask(void *pvParameters)
 #if ifopen
 
 
-/* APP启动自检成功转正函数 (清除试运行标志，避免被Bootloader回滚) */
+/* APP 自检 (A档 P0)：返回 1 表示健康、可以转正；返回 0 表示不转正，等 Bootloader 回滚。
+ *
+ * 检查项：
+ *   1) 调度器时基活着 —— vTaskDelay 之后 tick 必须真的走过；
+ *   2) 镜像完整性 —— 仅当元数据说"当前处于 TESTING 试运行"时才逐字节核对
+ *      片内 APP 区镜像的 CRC32 与元数据声明是否一致。
+ *      为什么要加条件：如果设备是被 ST-Link 直接烧写的(开发场景)，元数据里的
+ *      app_size/app_crc32 可能是上一版固件留下的，无条件比对会把好固件判成坏的；
+ *      而一旦 ota_state==TESTING，就说明"这个 APP 区是 Bootloader 刚搬进来的"，
+ *      此时比对才有意义，且能真正拦住"搬运/Flash 写坏"这类故障。 */
+static uint8_t App_SelfTest(void)
+{
+    BootMeta_t meta_a, meta_b, meta;
+    uint32_t   tick_before;
+
+    /* --- 1) 时基存活 --- */
+    tick_before = (uint32_t)xTaskGetTickCount();
+    vTaskDelay(pdMS_TO_TICKS(50));
+    if ((uint32_t)((uint32_t)xTaskGetTickCount() - tick_before) < 40U)
+    {
+        return 0U;
+    }
+
+    /* --- 2) 镜像完整性（仅试运行阶段） --- */
+    W25QXX_Read((uint8_t*)&meta_a, SPI_META_A_ADDR, BOOT_META_SIZE);
+    W25QXX_Read((uint8_t*)&meta_b, SPI_META_B_ADDR, BOOT_META_SIZE);
+    if (BootMeta_SelectBest(&meta_a, &meta_b, &meta) == 0U)
+    {
+        /* 两份元数据都读不出来(比如片外 Flash 没焊/首次上电)：不阻塞启动 */
+        return 1U;
+    }
+
+    if ((meta.ota_state == (uint32_t)OTA_STATE_TESTING) &&
+        (meta.confirmed == 0U) &&
+        (meta.app_size != 0U) &&
+        (meta.app_size <= MCU_APP_MAX_SIZE))
+    {
+        if (BootCrc32((const uint8_t*)MCU_APP_ADDR, meta.app_size) != meta.app_crc32)
+        {
+            return 0U;   /* 片内镜像与元数据不符：不转正，交给 Bootloader 回滚 */
+        }
+    }
+
+    return 1U;
+}
+
+/* APP启动自检成功转正函数 (清除试运行标志，避免被Bootloader回滚)
+ * A档 P2: 元数据改为 A/B 双槽 + seq 序号，本函数同样走"选最优槽 -> 写旧槽"流程 */
 void App_Confirm_Healthy(void)
 {
-    BootMeta_t meta;
-    W25QXX_Read((uint8_t*)&meta, SPI_META_ADDR, sizeof(BootMeta_t));
-    if (meta.magic == BOOT_MAGIC_NUM && meta.ota_state == OTA_STATE_TESTING)
+    BootMeta_t meta_a, meta_b, meta;
+    uint32_t   seq = 0U;
+    uint32_t   addr;
+
+    W25QXX_Read((uint8_t*)&meta_a, SPI_META_A_ADDR, BOOT_META_SIZE);
+    W25QXX_Read((uint8_t*)&meta_b, SPI_META_B_ADDR, BOOT_META_SIZE);
+    (void)BootMeta_SelectBest(&meta_a, &meta_b, &meta);
+
+    if (meta.ota_state == (uint32_t)OTA_STATE_TESTING && meta.confirmed == 0U)
     {
-        meta.ota_state = OTA_STATE_IDLE;
-        meta.boot_retry_cnt = 0;
-        W25QXX_Erase_Sector(SPI_META_ADDR / 4096);
-        W25QXX_Write((uint8_t*)&meta, SPI_META_ADDR, sizeof(BootMeta_t));
+        meta.ota_state      = (uint32_t)OTA_STATE_IDLE;
+        meta.boot_retry_cnt = 0U;
+        meta.confirmed      = 1U;
+
+        addr = BootMeta_NextSlotAddr(&meta_a, &meta_b, &meta, &seq);
+        meta.seq = seq;
+        BootMeta_Finalize(&meta);
+
+        W25QXX_Erase_Sector(addr / 4096U);
+        W25QXX_Write((uint8_t*)&meta, addr, BOOT_META_SIZE);
+
         #if DEBUG
         printf("Firmware self-test passed: officially confirmed!\r\n");
         #endif
     }
 }
 
+/*=================== A档 P1: 分片流式升级会话 ===================*/
+/* 旧实现把整包固件一次性塞进 4KB 接收缓冲，固件一大就必然溢出。
+ * 新实现改为 帧驱动 + 边收边写片外 Flash，彻底解掉 4KB 上限。 */
 
-void iap_task(void *pvParameters)
+typedef struct {
+    uint32_t fw_size;      /* BEGIN 声明的固件总长度 */
+    uint32_t fw_crc32;     /* BEGIN 声明的整镜像 CRC32 */
+    uint32_t fw_version;   /* 版本号 */
+    uint32_t next_offset;  /* 期望的下一个 DATA 偏移(等于已写字节数) */
+    uint32_t recv_crc;     /* 逐帧流式 CRC32 的中间态 */
+    uint16_t last_seq;     /* 上一帧序号 */
+    uint8_t  active;       /* 1 = 升级会话进行中 */
+    uint8_t  fw_hmac[IAP_HMAC_LEN];  /* 【A档 P3】BEGIN 帧携带的镜像 HMAC-SHA256 */
+} IapSession_t;
 
+static IapSession_t s_iap;
+/* 【A档 P3】验签上下文放静态区：IAP 任务栈只有 1KB，SHA256_CTX 有 ~100B，
+ * 若放栈上容易把栈吃紧；静态化后不随函数调用进栈。 */
+static SHA256_CTX   s_hmacCtx;
+static uint8_t      s_tx_frame[64];   /* ACK/NAK 帧最长 14B，留足余量 */
+
+/* 阻塞式发送原始字节：IAP 会话期间 DMA 接收已停用，可直接占用 USART1 */
+static void Iap_SendRaw(const uint8_t *buf, uint32_t len)
 {
+    uint32_t i;
+    for (i = 0U; i < len; i++)
+    {
+        while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET) { }
+        USART_SendData(USART1, buf[i]);
+    }
+}
 
-	uint16_t receivedLength;
+static void Iap_ReplyAck(uint16_t seq)
+{
+    uint32_t n = IapProto_BuildAck(s_tx_frame, seq);
+    if (n > 0U) { Iap_SendRaw(s_tx_frame, n); }
+}
 
-	u32 firmwareLen;  /* 实际固件长度（不含CRC） */
-	BootMeta_t meta;
+static void Iap_ReplyNak(uint16_t seq, uint8_t err)
+{
+    uint32_t n = IapProto_BuildNak(s_tx_frame, seq, err);
+    if (n > 0U) { Iap_SendRaw(s_tx_frame, n); }
+}
 
-	while(1)
+/* 命令1: BEGIN —— 校验长度上限、擦除下载暂存区、复位会话 */
+static void Iap_OnBegin(const IapFrame_t *fr)
+{
+    if (fr->len != IAP_BEGIN_PAYLOAD_LEN)
+    {
+        Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);
+        return;
+    }
 
-	{
+    s_iap.fw_size    = IapProto_GetU32(&fr->payload[0]);
+    s_iap.fw_crc32   = IapProto_GetU32(&fr->payload[4]);
+    s_iap.fw_version = IapProto_GetU32(&fr->payload[8]);
+    /* 【A档 P3】payload[12..43] = 镜像 HMAC-SHA256，先存下来，END 阶段逐块重算比对 */
+    memcpy(s_iap.fw_hmac, &fr->payload[12], IAP_HMAC_LEN);
 
-		xSemaphoreTake(g_iapSemaphore,portMAX_DELAY);	/*等待信号量，portMAX_DELAY代表无限等*/
+    if ((s_iap.fw_size == 0U) || (s_iap.fw_size > IAP_FW_MAX_SIZE))
+    {
+        s_iap.active = 0U;
+        Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);
+        return;
+    }
 
-#if DEBUG
+    W25QXX_Erase_Range(SPI_DOWNLOAD_ADDR, s_iap.fw_size);
 
-		printf("excute iap_task");//调试用
+    s_iap.next_offset = 0U;
+    s_iap.recv_crc    = BootCrc32Begin();
+    s_iap.last_seq    = fr->seq;
+    s_iap.active      = 1U;
 
-#endif
+    /* 【A档 P0】开门：只有收到合法 BEGIN 之后，串口才进入"升级会话"模式。
+     * 升级期间上位机可以继续用任意帧格式(它不再需要满足 0xA5 0x5A 帧头
+     * 之外的判定)，这样调试/扩展都不会被帧头判定挡住。 */
+    g_iapUpgradeActive = 1U;
 
-        // 串口空闲中断，动态计算固件bin文件的大小
+    Iap_ReplyAck(fr->seq);
+}
 
-		receivedLength = GetReceivedDataLength();/*计算所接收的数据量，需要将该变量放在等待信号量函数后，以确保及时更新*/
+/* 命令2: DATA —— 偏移必须连续，边写边算流式 CRC */
+static void Iap_OnData(const IapFrame_t *fr)
+{
+    uint32_t off;
+    uint32_t data_len;
+    const uint8_t *src;
 
-		if(receive_buff[0])//看是否接收到了APP代码
+    if (s_iap.active == 0U) { Iap_ReplyNak(fr->seq, IAP_ERR_STATE); return; }
+    if (fr->len < 4U)       { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);  return; }
 
-		{
+    off      = IapProto_GetU32(&fr->payload[0]);
+    data_len = (uint32_t)fr->len - 4U;
+    src      = &fr->payload[4];
 
-				printf("received the size of firmware=%d\r\n",receivedLength);
+    /* 【A档 P1】重传幂等：如果上一帧的 ACK 在串口上丢了，上位机会重发同一帧。
+     * 此时数据其实已经收下并落盘，必须补一个 ACK 而不是报"偏移不连续"，
+     * 否则一次丢 ACK 就会把整次升级判死。判据：本帧恰好覆盖刚刚写过的那段。 */
+    if ((fr->seq == s_iap.last_seq) && ((off + data_len) == s_iap.next_offset))
+    {
+        Iap_ReplyAck(fr->seq);
+        return;
+    }
 
+    /* 偏移不连续 -> 拒绝，由上位机按 ACK/NAK 重传 */
+    if (off != s_iap.next_offset)                  { Iap_ReplyNak(fr->seq, IAP_ERR_OFFSET); return; }
+    if ((off + data_len) > s_iap.fw_size)          { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);   return; }
+    if (data_len > IAP_DATA_PAYLOAD_LEN)           { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);   return; }
 
+    W25QXX_Write((uint8_t*)(uint32_t)src, SPI_DOWNLOAD_ADDR + off, (uint16_t)data_len);
 
-				/*==================== CRC32校验 ====================*/
+    s_iap.recv_crc    = BootCrc32Update(s_iap.recv_crc, src, data_len);
+    s_iap.next_offset = off + data_len;
+    s_iap.last_seq    = fr->seq;
 
-				/* 校验接收到的固件数据完整性 */
+    Iap_ReplyAck(fr->seq);
+}
 
-				/* 数据格式：[固件数据][4字节CRC32] */
+/* 命令3: END —— 长度/CRC 双重核对，通过则置 PENDING_APPLY 并复位交给 Bootloader */
+static void Iap_OnEnd(const IapFrame_t *fr)
+{
+    BootMeta_t meta_a, meta_b, meta;
+    uint32_t   seq = 0U;
+    uint32_t   addr;
 
-				if(CRC32_VerifyFirmware(receive_buff, receivedLength) == 0)
+    if (s_iap.active == 0U) { Iap_ReplyNak(fr->seq, IAP_ERR_STATE); return; }
+    if (fr->len < 8U)       { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);  return; }
 
-				{
+    if ((IapProto_GetU32(&fr->payload[0]) != s_iap.fw_size) ||
+        (IapProto_GetU32(&fr->payload[4]) != s_iap.fw_crc32))
+    {
+        Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);
+        return;
+    }
 
-                    /* CRC校验失败，清空缓冲区并等待重传 */
+    if (s_iap.next_offset != s_iap.fw_size)             { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE); return; }
+    if (BootCrc32End(s_iap.recv_crc) != s_iap.fw_crc32) { Iap_ReplyNak(fr->seq, IAP_ERR_CRC);  return; }
 
-                    #if DEBUG
+    /* 【A档 P3】HMAC-SHA256 验签（方案B：验签在 APP 侧，BL 保持极简）
+     * CRC32 只能防"传输出错"，防不了"有人拿串口塞一份改过的固件"：
+     * CRC32 是线性的、攻击者可随手重算，HMAC 需要预共享密钥才算得出来。
+     * 这里从暂存区回读整镜像、按 4KB 分块流式重算 HMAC，与 BEGIN 声明的签名比对。 */
+    {
+        uint32_t off = 0U;
+        uint32_t chunk;
+        uint8_t  mac[IAP_HMAC_LEN];
 
-                        printf("CRC32 verify failed!\r\n");
+        HmacSha256_Init(&s_hmacCtx, g_iapHmacKey, IAP_HMAC_KEY_LEN);
+        while (off < s_iap.fw_size)
+        {
+            chunk = s_iap.fw_size - off;
+            if (chunk > (uint32_t)buff_size) { chunk = (uint32_t)buff_size; }
+            W25QXX_Read(receive_buff, SPI_DOWNLOAD_ADDR + off, (uint16_t)chunk);
+            Sha256_Update(&s_hmacCtx, receive_buff, chunk);
+            off += chunk;
+        }
+        HmacSha256_Final(&s_hmacCtx, g_iapHmacKey, IAP_HMAC_KEY_LEN, mac);
 
-                    #endif
+        if (memcmp(mac, s_iap.fw_hmac, IAP_HMAC_LEN) != 0)
+        {
+            /* 验签失败：直接作废本次会话，绝不写 PENDING_APPLY */
+            s_iap.active       = 0U;
+            g_iapUpgradeActive = 0U;
+            Show_Str(0, 120, RED, WHITE, "HMAC FAIL! Reject", 16, 0);
+            Iap_ReplyNak(fr->seq, IAP_ERR_HMAC);
+            return;
+        }
+    }
 
-					Show_Str(0,0,BLUE,WHITE,"CRC32 Error!",16,0);
+    W25QXX_Read((uint8_t*)&meta_a, SPI_META_A_ADDR, BOOT_META_SIZE);
+    W25QXX_Read((uint8_t*)&meta_b, SPI_META_B_ADDR, BOOT_META_SIZE);
+    (void)BootMeta_SelectBest(&meta_a, &meta_b, &meta);
 
-					memset(receive_buff,0,buff_size);   //清空数组
+    if ((meta.max_retry == 0U) || (meta.max_retry > 100U))
+    {
+        meta.max_retry = BOOT_META_MAX_RETRY;
+    }
 
-					MYDMA_Enable(DMA1_Channel5);//开启一次DMA传输，用于下次更新
+    meta.app_size       = s_iap.fw_size;
+    meta.app_crc32      = s_iap.fw_crc32;
+    meta.fw_version     = s_iap.fw_version;
+    meta.ota_state      = (uint32_t)OTA_STATE_PENDING_APPLY;
+    meta.boot_retry_cnt = 0U;
+    meta.confirmed      = 0U;
 
-					FLASH_ErasePage(FLASH_APP1_ADDR);
+    addr = BootMeta_NextSlotAddr(&meta_a, &meta_b, &meta, &seq);
+    meta.seq = seq;
+    BootMeta_Finalize(&meta);
 
-				}
+    W25QXX_Erase_Sector(addr / 4096U);
+    W25QXX_Write((uint8_t*)&meta, addr, BOOT_META_SIZE);
 
-				else
+    s_iap.active       = 0U;
+    g_iapUpgradeActive = 0U;
+    Iap_ReplyAck(fr->seq);
 
-				{
+    Show_Str(0, 100, BLUE, WHITE, "Save OK! Rebooting...", 16, 0);
+    vTaskDelay(pdMS_TO_TICKS(200));   /* 等 ACK 发完再复位 */
+    NVIC_SystemReset();
+}
 
-                    /* CRC校验通过，继续后续流程 */
+/* 命令4: ABORT —— 放弃本次会话 */
+static void Iap_OnAbort(const IapFrame_t *fr)
+{
+    s_iap.active       = 0U;
+    g_iapUpgradeActive = 0U;
+    Iap_ReplyAck(fr->seq);
+}
 
-                    #if DEBUG
+/* 从 0x08002000 起扫描 0xFF 反推当前运行固件实际长度（4 字节对齐） */
+static uint32_t App_Detect_FwLength(void)
+{
+    const uint8_t *base = (const uint8_t *)MCU_APP_ADDR;
+    uint32_t i = MCU_APP_MAX_SIZE;
 
-                        printf("CRC32 verify passed!\r\n");
+    while ((i > 0U) && (base[i - 1U] == 0xFFU)) { i--; }
+    if (i == 0U) { return 0U; }
+    return (i + 3U) & ~3U;
+}
 
-                    #endif
+/* 命令5: BURN_GOLDEN —— 把当前运行区固件固化成黄金镜像(P6) */
+static void Iap_OnBurnGolden(const IapFrame_t *fr)
+{
+    BootMeta_t meta_a, meta_b, meta;
+    uint32_t   seq = 0U;
+    uint32_t   addr, off = 0U, chunk, len, crc;
 
-					firmwareLen = receivedLength - 4;  /* 实际固件长度 = 总长度 - 4字节CRC */
+    len = App_Detect_FwLength();
+    if ((len == 0U) || (len > MCU_APP_MAX_SIZE))
+    {
+        Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);
+        return;
+    }
 
-				
+    W25QXX_Erase_Range(SPI_GOLDEN_ADDR, len);
 
-					/* ================= 片外 SPI-Flash 写入与安全升级 ================= */
-					/* 校验首地址是否合法 (向量表复位中断地址应为 0x08XXXXXX) */
-					if(((*(vu32*)(receive_buff + 4)) & 0xFF000000) == 0x08000000)
-					{	
-                        LCD_Clear(WHITE);
-						Show_Str(0, 80, BLUE, WHITE, "Firmware saving...", 16, 0);
+    crc = BootCrc32Begin();
+    while (off < len)
+    {
+        chunk = (len - off > (uint32_t)buff_size) ? (uint32_t)buff_size : (len - off);
+        memcpy(receive_buff, (const void *)(MCU_APP_ADDR + off), chunk);
+        crc = BootCrc32Update(crc, receive_buff, chunk);
+        W25QXX_Write(receive_buff, SPI_GOLDEN_ADDR + off, (uint16_t)chunk);
+        off += chunk;
+    }
+    crc = BootCrc32End(crc);
 
-						/* 1. 擦除片外 W25Q64 下载暂存区 (完全不破坏片内运行的固件！) */
-						W25QXX_Erase_Range(SPI_DOWNLOAD_ADDR, firmwareLen);
+    W25QXX_Read((uint8_t*)&meta_a, SPI_META_A_ADDR, BOOT_META_SIZE);
+    W25QXX_Read((uint8_t*)&meta_b, SPI_META_B_ADDR, BOOT_META_SIZE);
+    (void)BootMeta_SelectBest(&meta_a, &meta_b, &meta);
 
-						/* 2. 写入新固件到片外 SPI-Flash 暂存区 */
-						W25QXX_Write(receive_buff, SPI_DOWNLOAD_ADDR, firmwareLen);
+    meta.golden_size  = len;
+    meta.golden_crc32 = crc;
 
-                        #if DEBUG
-                            printf("firmware saved to SPI-Flash successfully!\r\n");
-                        #endif
-                        
-                        /* 3. 更新升级元数据 (设置 PENDING 状态) */
-                        memset(&meta, 0, sizeof(BootMeta_t));
-                        meta.magic = BOOT_MAGIC_NUM;
-                        meta.firmware_len = firmwareLen;
-                        meta.firmware_crc32 = *(uint32_t*)(receive_buff + firmwareLen); /* 提取固件末尾的 CRC */
-                        meta.ota_state = OTA_STATE_PENDING_APPLY;
-                        meta.boot_retry_cnt = 0;
+    addr = BootMeta_NextSlotAddr(&meta_a, &meta_b, &meta, &seq);
+    meta.seq = seq;
+    BootMeta_Finalize(&meta);
 
-                        W25QXX_Erase_Sector(SPI_META_ADDR / 4096);
-                        W25QXX_Write((uint8_t*)&meta, SPI_META_ADDR, sizeof(BootMeta_t));
+    W25QXX_Erase_Sector(addr / 4096U);
+    W25QXX_Write((uint8_t*)&meta, addr, BOOT_META_SIZE);
 
-                        Show_Str(0, 100, BLUE, WHITE, "Save OK! Rebooting...", 16, 0);
-                        vTaskDelay(pdMS_TO_TICKS(1000));
+    Iap_ReplyAck(fr->seq);
+}
 
-                        /* 4. 触发硬件复位，由 Bootloader 执行老固件备份与新固件刷写 */
-                        NVIC_SystemReset();
-					}
+/* 帧分发：解析失败静默丢弃（修掉旧版"串口收到任意数据就进升级流程"的缺陷） */
+static void Iap_HandleFrame(uint8_t *buf, uint32_t avail)
+{
+    IapFrame_t fr;
 
-					/*如果判断固件失败，先将接收APP数组情况，防止数据残留并重新开启DMA，用于下次更新*/
+    if (IapProto_ParseFrame(buf, avail, &fr) <= 0)
+    {
+        return;
+    }
 
-					else{
+    switch (fr.type)
+    {
+        case IAP_CMD_BEGIN:       Iap_OnBegin(&fr);       break;
+        case IAP_CMD_DATA:        Iap_OnData(&fr);        break;
+        case IAP_CMD_END:         Iap_OnEnd(&fr);         break;
+        case IAP_CMD_ABORT:       Iap_OnAbort(&fr);       break;
+        case IAP_CMD_BURN_GOLDEN: Iap_OnBurnGolden(&fr);  break;
+        default:                                          break;
+    }
+}
 
-						memset(receive_buff,0,buff_size);   //清空数组
+/*--------------------------------------------------------------
 
-						MYDMA_Enable(DMA1_Channel5);//开启一次DMA传输，用于下次更新
+*@brief: 固件升级任务（帧驱动，一帧一 ACK）
 
-                        #if DEBUG
+*@para: *pvParameters
 
-                            printf("error! firmware address judgment failed\r\n");
+*@return: none
 
-                        #endif
+---------------------------------------------------------------*/
+void iap_task(void *pvParameters)
+{
+    uint16_t receivedLength;
+    uint32_t frameTick;
 
-						
+    (void)pvParameters;
 
-					}
+    while (1)
+    {
+        xSemaphoreTake(g_iapSemaphore, portMAX_DELAY);
 
-				}
+        /* 【A档 P1】取"空闲中断那一刻"锁存的快照，而不是现在去读 CNDTR。
+         * 旧代码的隐患：本任务优先级最低，被抢占期间如果又进来一串字节，
+         * CNDTR 已经变了，现读会把两帧粘成"一帧"，长度和内容全错，
+         * 表现为"偶发 CRC 校验失败 / 帧长非法"，很难复现。 */
+        receivedLength = g_iapFrameLen;
+        frameTick      = g_iapFrameTick;
+        g_iapFrameLen  = 0U;
 
-		}
+        /* 【A档 P1】升级会话帧间超时：上位机中途掉线时，把半截会话丢掉，
+         * 让 g_iapUpgradeActive 归位，否则设备会一直停在"升级中"不再收正常指令。
+         * 无符号相减天然处理 tick 回绕。 */
+        if ((s_iap.active != 0U) &&
+            ((uint32_t)((uint32_t)xTaskGetTickCount() - frameTick) > (uint32_t)pdMS_TO_TICKS(IAP_RX_TIMEOUT_MS)))
+        {
+            s_iap.active        = 0U;
+            g_iapUpgradeActive  = 0U;
+        }
 
-	}
+        if ((receivedLength > 0U) && (receivedLength <= buff_size))
+        {
+            Iap_HandleFrame(receive_buff, (uint32_t)receivedLength);
+        }
 
+        /* 本帧处理完：清缓冲并重新武装 DMA，等下一帧 */
+        memset(receive_buff, 0, buff_size);
+        MYDMA_Enable(DMA1_Channel5);
+    }
 }
 
 #endif
@@ -1676,6 +2070,8 @@ void SpeedCalcTask(void *pvParameters)
     while (1)
 
     {
+
+        g_taskHeartbeat |= HB_SPEEDCALC;   /* A档P4: 报告我还在跑 */
 
         /* 等待TIM4中断发送的信号量 */
 

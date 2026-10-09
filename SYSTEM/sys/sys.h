@@ -48,7 +48,7 @@
 
 /* 定义DMA接收缓冲区的最大容量（支持变长固件，上限4KB，适配0x20004000~0x20005000） */
 
-#define   buff_size 		4096
+#define   buff_size 		2048   /* A档P1: 分片流式升级单帧最大1039B，4KB接收缓冲不再需要，回收2KB RAM */
 
 #endif
 

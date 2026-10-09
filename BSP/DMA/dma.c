@@ -55,10 +55,17 @@ void MYDMA_Enable(DMA_Channel_TypeDef* DMA_CHx)
 }
 
 #if ifopen
-/* 计算DMA实际接收到的数据长度 */
+/* A档 P1: 本次接收长度快照。
+ * 由 USART1 空闲中断在"停用 DMA 之后"写入，任务侧只读快照，
+ * 避免任务上下文直接读 CNDTR 时与 DMA 硬件搬数产生竞态
+ * （旧实现里 iap_task 自己读 CNDTR，若 DMA 已重新使能，读到的就是 4096 而不是本帧长度）。*/
+volatile uint16_t g_iapFrameLen  = 0;
+/* 本次 IDLE 发生的系统节拍，供 iap_task 判定"帧间超时" */
+volatile uint32_t g_iapFrameTick = 0;
+
+/* 取回本次 DMA 接收到的数据长度（快照版） */
 uint16_t GetReceivedDataLength(void)
 {
-    // 总容量 - 当前还没搬完的剩余倒计数 = 实际接收字节数
-    return buff_size - DMA_GetCurrDataCounter(DMA1_Channel5);
+    return g_iapFrameLen;
 }
 #endif

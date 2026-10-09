@@ -3,9 +3,13 @@
 
 #if SYSTEM_SUPPORT_OS
 #include "FreeRTOS.h"
+#include "task.h"     /* A档 P1: xTaskGetTickCountFromISR 原型在此 */
 #include "semphr.h"
 #if ifopen
+#include "dma.h"    /* A档 P1: g_iapFrameLen / g_iapFrameTick / MYDMA_Enable */
+#include "iap.h"    /* A档 P0: g_iapUpgradeActive 升级会话门控 */
 extern SemaphoreHandle_t g_iapSemaphore;
+extern u8 receive_buff[];   /* 见 USER/main.h，DMA 接收缓冲 */
 #endif
 #endif
 
@@ -100,20 +104,40 @@ void USART1_IRQHandler(void)
     // 串口空闲中断处理：上位机发完一包固件后总线变为空闲，硬件自动触发 IDLE 中断
     if (USART_GetITStatus(USART1, USART_IT_IDLE) != RESET)
     {
+        uint16_t rx_len;
+
         // 1. 清除 IDLE 中断标志位：先读 SR 寄存器，再读 DR 寄存器（STM32 硬件标准清除序列）
         volatile uint32_t temp = USART1->SR;
         temp = USART1->DR;
         (void)temp;
 
-        // 2. 立即停用 DMA，锁存当前 CNDTR 计数值，便于精确计算已接收长度
+        // 2. 停用 DMA 后 CNDTR 冻结，此刻读数才是本帧真实长度（A档 P1: 在中断里锁存快照，
+        //    任务侧不再直接读 CNDTR，避免"DMA 已被重新武装"导致读到满缓冲的竞态）
         DMA_Cmd(DMA1_Channel5, DISABLE);
+        rx_len = (uint16_t)(buff_size - DMA_GetCurrDataCounter(DMA1_Channel5));
 
-        // 3. 释放二值信号量，唤醒 iap_task 执行后续的动态长度计算与固件烧写
-        if (g_iapSemaphore != NULL)
+        // 3. 【A档 P0 门控】只有"升级会话进行中"或"帧头确实是 0xA5 0x5A 的合法 IAP 帧"
+        //    才走升级路径。旧实现无条件停 DMA + 给信号量，串口上任何噪声字节
+        //    都会被当成固件帧去唤醒 iap_task，干扰正常串口接收。
+        if ((g_iapUpgradeActive != 0U) ||
+            ((rx_len >= IAP_FRAME_HDR_LEN) &&
+             (receive_buff[0] == IAP_FRAME_HEAD0) &&
+             (receive_buff[1] == IAP_FRAME_HEAD1)))
         {
-            xSemaphoreGiveFromISR(g_iapSemaphore, &xHigherPriorityTaskWoken);
+            g_iapFrameLen  = rx_len;
+            g_iapFrameTick = xTaskGetTickCountFromISR();   /* A档 P1: 供 iap_task 判帧间超时 */
+
+            // 4. 释放二值信号量，唤醒 iap_task 处理本帧
+            if (g_iapSemaphore != NULL)
+            {
+                xSemaphoreGiveFromISR(g_iapSemaphore, &xHigherPriorityTaskWoken);
+            }
+            portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+            return;
         }
-        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+
+        // 5. 非 IAP 帧：重新武装 DMA 继续收，普通串口状态机 USART_RX_STA 不受影响
+        MYDMA_Enable(DMA1_Channel5);
         return;
     }
 #endif

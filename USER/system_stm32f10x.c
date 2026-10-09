@@ -125,8 +125,19 @@
 /*!< Uncomment the following line if you need to relocate your vector Table in
      Internal SRAM. */ 
 /* #define VECT_TAB_SRAM */
+/* [A档改造 P0] 中断向量表偏移改为"可由工程宏覆盖"。
+ * 背景：Bootloader 与 APP 共用本文件(Bootloader/bootloader.uvprojx 也编译 ..\USER\system_stm32f10x.c)，
+ *       但两者需要的偏移不同：
+ *         - Bootloader 驻留 0x08000000 -> 偏移 0x0
+ *         - APP       驻留 0x08002000 -> 偏移 0x2000 (否则 SysTick/中断仍跳进 Bootloader 的向量表，
+ *                                      APP 一进中断就跑到 Bootloader 的 handler 里去)
+ * 实现：APP 工程的 C/C++ Define 里加 VECT_TAB_OFFSET=0x2000；
+ *       Bootloader 工程不加该宏，走下面的默认值 0x0。两边共用一份源码互不影响。
+ * 注意：必须是 0x200 的整数倍。 */
+#ifndef VECT_TAB_OFFSET
 #define VECT_TAB_OFFSET  0x0 /*!< Vector Table base offset field. 
                                   This value must be a multiple of 0x200. */
+#endif
 
 
 /**

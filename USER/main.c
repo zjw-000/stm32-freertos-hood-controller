@@ -1,5 +1,7 @@
-extern void App_Confirm_Healthy(void);
-#include "w25qxx.h"
+extern void App_Confirm_Healthy(void);
+#include "w25qxx.h"
+
+#include "boot_config.h"
 /*
 
  * 油烟机控制系统主程序
@@ -150,9 +152,21 @@ int main(void)
 
 {
 
+    /* 【A档 P0 双保险】把中断向量表基址显式钉到 APP 区。
+     * SystemInit() 已用 VECT_TAB_OFFSET=0x2000 设过一次，这里再显式设一次：
+     * 万一以后有人把 VECT_TAB_OFFSET 改回 0，APP 的 TIM4/串口/编码器中断
+     * 会静默落到 Bootloader 的 weak Default_Handler，那种故障极难定位。 */
+    SCB->VTOR = MCU_APP_ADDR;
+
+    /* 【A档 P4】Bootloader 跳转前已经启动了 IWDG(1s)，APP 在启动阶段也必须喂狗，
+     * 否则还没跑到 StartTask 就会被硬件复位。这里在耗时最长的 Hardware_Init 前后各喂一次。 */
+    IWDG->KR = 0x0000AAAAU;
+
     /* 硬件初始化 */
 
     Hardware_Init();
+
+    IWDG->KR = 0x0000AAAAU;     /* 再次喂狗：保证后面创建任务的时间余量 */
 
 /* 系统状态初始化 */
 

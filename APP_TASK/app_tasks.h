@@ -91,6 +91,28 @@ typedef struct {
 #define TASK_MOTOR_STK_SIZE         256     /* 电机控制任务栈大小 */
 #define TASK_SPEED_CALC_STK_SIZE    128     /* 速度计算任务栈大小 */
 #define TASK_IAP_STK_SIZE           256     /* IAP任务栈大小 */
+#define TASK_WDT_PRIORITY           8       /* A档P4: 看门狗任务优先级（只需每秒跑一次，给中等优先级即可） */
+#define TASK_WDT_STK_SIZE           96      /* A档P4: 看门狗任务栈大小 */
+
+/*-----------------------------------------------------------
+ * A档 P4: 看门狗心跳位定义
+ *   每个周期任务在自己主循环里把对应位置1；看门狗任务每 1s 检查一次，
+ *   "所有位都到齐"才喂狗，否则不喂 —— 1s 后 IWDG 硬件复位。
+ *   这样保护的是"任务整体是否还在跑"，而不是"某个任务是否在喂狗"。
+ *----------------------------------------------------------*/
+#define HB_KEYSCAN      0x0001U
+#define HB_SENSOR       0x0002U
+#define HB_WINDSPEED    0x0004U
+#define HB_MOTOR        0x0008U
+#define HB_UI           0x0010U
+#define HB_ANTIBACKFLOW 0x0020U
+#define HB_SPEEDCALC    0x0040U
+#define HB_ALL          (HB_KEYSCAN | HB_SENSOR | HB_WINDSPEED | HB_MOTOR | \
+                         HB_UI | HB_ANTIBACKFLOW | HB_SPEEDCALC)
+
+extern volatile uint16_t g_taskHeartbeat;   /* 各任务心跳位（置1表示本轮跑过） */
+extern volatile uint16_t g_wdtMissMask;     /* 最近一次未到齐的心跳位，供定位卡死任务 */
+
 
 /*-----------------------------------------------------------
  * 函数声明

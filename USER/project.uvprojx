@@ -338,7 +338,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER</Define>
+              <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER,VECT_TAB_OFFSET=0x2000</Define>
               <Undefine></Undefine>
               <IncludePath>..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\CORE;..\STM32F10x_FWLib\inc;..\FreeRTOS\include;..\FreeRTOS\portable\RVDS\ARM_CM3;..\BSP\BEEP;..\BSP\DHT11;..\BSP\DMA;..\BSP\EXTI;..\BSP\IAP;..\BSP\KEY;..\BSP\LCD;..\BSP\SPI;..\BSP\STMFLASH;..\BSP\MOTOR;..\BSP\GPIO;..\BSP\PID;..\BSP\MQ2;..\BSP\WIND;..\APP_TASK;..\BSP\KEY;..\BSP\CRC32;..\BSP\W25QXX;..\Shared</IncludePath>
             </VariousControls>
