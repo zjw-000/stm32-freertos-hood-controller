@@ -13,6 +13,7 @@ JLinkLog.txt
 
 # Build outputs
 OBJ/
+OBJ_BL/
 USER/DebugConfig/
 
 build.log
