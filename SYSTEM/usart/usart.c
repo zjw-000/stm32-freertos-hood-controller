@@ -127,7 +127,7 @@ void USART1_IRQHandler(void)
             g_iapFrameLen  = rx_len;
             g_iapFrameTick = xTaskGetTickCountFromISR();   /* A档 P1: 供 iap_task 判帧间超时 */
 
-            // 4. 释放二值信号量，唤醒 iap_task 处理本帧
+            // 4. 中断释放二值信号量，唤醒 iap_task 处理本帧
             if (g_iapSemaphore != NULL)
             {
                 xSemaphoreGiveFromISR(g_iapSemaphore, &xHigherPriorityTaskWoken);

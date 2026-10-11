@@ -143,7 +143,7 @@ typedef struct {
 #define IAP_CHUNK_SIZE          1024U                       /* 每帧 DATA 携带的固件字节数 */
 #define IAP_DATA_PAYLOAD_LEN    (IAP_CHUNK_SIZE + 4U)       /* offset u32 + data */
 #define IAP_MAX_PAYLOAD_LEN     64U                         /* BEGIN 帧最大 payload */
-#define IAP_MAX_FRAME_LEN       (IAP_FRAME_HDR_LEN + IAP_DATA_PAYLOAD_LEN + IAP_FRAME_TAIL_LEN)
+#define IAP_MAX_FRAME_LEN       (IAP_FRAME_HDR_LEN + IAP_DATA_PAYLOAD_LEN + IAP_FRAME_TAIL_LEN) /* 7 + 4 + 1024 + 4*/
 
 /* BEGIN 帧 payload 结构 (手工序列化，不用结构体直接映射) */
 #define IAP_HMAC_LEN            32U                            /* 签名块长度(P3 用) */
@@ -153,7 +153,21 @@ typedef struct {
  * 避免上位机中途掉线/断线后设备一直卡在"升级中"状态 */
 #define IAP_RX_TIMEOUT_MS       5000U
 
+/* 升级会话最长存活时长：即使上位机一直在发帧，单次会话也不允许超过该时长。
+ * 目的：让"升级豁免"始终有界 —— 无限期的豁免等于把任务级死锁检测永久关掉。 */
+#define IAP_SESSION_MAX_MS      60000U
+
+/* 会话超时判定（纯宏，无 RTOS 依赖，可在主机侧单测）：
+ *   now / last_active / start_at 均为 tick 计数（本工程 configTICK_RATE_HZ=1000，1 tick = 1ms）
+ *   ① 帧间静默超时：上位机掉线/断线，本会话不再有新帧到达；
+ *   ② 会话总时长超限：上位机在线但会话异常拖长（例如反复重传同一帧）。
+ * 无符号相减天然处理 tick 回绕。返回 1 = 会话已失效，调用方应放弃本次会话。
+ * 调用前提：仅在 active==1 的会话内使用。 */
+#define IAP_SESSION_IS_STALE(now, last_active, start_at)                          \
+    ((((uint32_t)((now) - (last_active)) > (uint32_t)(IAP_RX_TIMEOUT_MS)) ||     \
+      ((uint32_t)((now) - (start_at))    > (uint32_t)(IAP_SESSION_MAX_MS)))      \
+     ? 1U : 0U)
 /* 固件镜像长度上限：受下载区与 APP 区共同约束 */
-#define IAP_FW_MAX_SIZE         MCU_APP_MAX_SIZE
+#define IAP_FW_MAX_SIZE         MCU_APP_MAX_SIZE  //56KB
 
 #endif

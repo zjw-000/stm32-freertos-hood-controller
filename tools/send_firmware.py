@@ -86,7 +86,7 @@ def _send_frame_expect_ack(ser, frame, seq, timeout, verbose, what):
             print("    .. %s 第 %d 次重试" % (what, attempt))
     return False, err
 
-
+# 
 def _run_session(ser, data, fw_crc, fw_mac, total, version, chunk, verbose):
     """一次完整的升级会话(BEGIN -> DATA... -> END)。返回 (ok, err, stage)"""
     n_chunks = (total + chunk - 1) // chunk
@@ -123,7 +123,7 @@ def _run_session(ser, data, fw_crc, fw_mac, total, version, chunk, verbose):
     ok, err = _send_frame_expect_ack(ser, end, seq, END_TIMEOUT, verbose, "END")
     return ok, err, "END"
 
-
+# 
 def send_firmware(port, bin_path, baudrate=115200, version=1, key=DEV_KEY,
                   chunk=CHUNK_SIZE, verbose=False):
     try:

@@ -27,8 +27,8 @@
 #define IAP_PARSE_BAD_ARG    (-2)
 
 typedef struct {
-    uint8_t        type;
-    uint16_t       seq;
+    uint8_t        type;				// 一个字节，两位0x01
+    uint16_t       seq;					// 两个字节，四位0x0001
     uint16_t       len;         /* payload 长度 */
     const uint8_t *payload;     /* 指向输入缓冲内部，调用方需在本帧处理完前保持缓冲有效 */
     uint32_t       frame_len;   /* 本帧总长度(含头尾)，用于推进读指针 */
@@ -36,8 +36,8 @@ typedef struct {
 
 /* ---- 小端读写 ---- */
 static __inline uint16_t IapProto_GetU16(const uint8_t *p)
-{
-    return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));
+{		
+    return (uint16_t)((uint16_t)p[0] | ((uint16_t)p[1] << 8));  // 数据低位在前p[0]，高位在后p[1]，所以要偏移p[1]之后再拼接起来
 }
 
 static __inline uint32_t IapProto_GetU32(const uint8_t *p)
@@ -100,7 +100,7 @@ static __inline uint32_t IapProto_BuildFrame(uint8_t *out, uint8_t type, uint16_
 /**
  * @brief 从缓冲里解析一帧
  * @param buf   输入缓冲
- * @param avail 可用字节数
+ * @param avail 可用字节数 
  * @param f     输出解析结果
  * @return IAP_PARSE_NEED_MORE / IAP_PARSE_BAD / 正数=整帧字节数
  * @note 返回正数时 f->frame_len 与返回值相同；调用方应把读指针推进 frame_len。
@@ -112,28 +112,32 @@ static __inline int IapProto_ParseFrame(const uint8_t *buf, uint32_t avail, IapF
     uint32_t crc_calc;
     uint32_t crc_recv;
     uint16_t len;
-
+		
     if (buf == 0 || f == 0) return IAP_PARSE_BAD_ARG;
-
+		// 检测到长度 < 7，判定为坏包
     if (avail < IAP_FRAME_HDR_LEN) return IAP_PARSE_NEED_MORE;
-
+		// 检测到不是A5 5A开头，判定为坏包
     if (buf[0] != IAP_FRAME_HEAD0 || buf[1] != IAP_FRAME_HEAD1) return IAP_PARSE_BAD;
-
+		// 检测到A5 5A起始帧正常，开始解析bin正常分包，获取有效数据长度len(payload) = 0x0400
     len = IapProto_GetU16(&buf[5]);
+		// 检测 单帧总长度 > 1039，判定为坏包
     if (len > IAP_MAX_FRAME_LEN) return IAP_PARSE_BAD;
-
+		// need = 7 + 1028 + 4 = 1039
     need = (uint32_t)IAP_FRAME_HDR_LEN + (uint32_t)len + IAP_FRAME_TAIL_LEN;
+		// 检测len(buf)是否 ＜ 1039，判定为坏包
     if (avail < need) return IAP_PARSE_NEED_MORE;
-
+		// 计算crc(body)
     crc_calc = BootCrc32(&buf[2], (uint32_t)len + 5U);
+		// 定位buf的起始地址为到DMA发送过来的单帧CRC值
     crc_recv = IapProto_GetU32(&buf[need - IAP_FRAME_TAIL_LEN]);
+		// crc32值校验不通过，判定为坏包
     if (crc_calc != crc_recv) return IAP_PARSE_BAD;
 
     f->type      = buf[2];
     f->seq       = IapProto_GetU16(&buf[3]);
-    f->len       = len;
+    f->len       = len;			// lengh(payload)
     f->payload   = &buf[IAP_FRAME_HDR_LEN];
-    f->frame_len = need;
+    f->frame_len = need;		// lengh(7 + 1028 + 4)
 
     return (int)need;
 }
@@ -141,9 +145,9 @@ static __inline int IapProto_ParseFrame(const uint8_t *buf, uint32_t avail, IapF
 /* 便捷：组一个 ACK 帧 (payload = ack_seq u16) */
 static __inline uint32_t IapProto_BuildAck(uint8_t *out, uint16_t ack_seq)
 {
-    uint8_t p[2];
-    IapProto_PutU16(p, ack_seq);
-    return IapProto_BuildFrame(out, IAP_RSP_ACK, ack_seq, p, 2U);
+    uint8_t p[2];											// ① 栈上 2 字节临时 payload
+    IapProto_PutU16(p, ack_seq);			// ② 小端写入：p[0]=低字节, p[1]=高字节
+    return IapProto_BuildFrame(out, IAP_RSP_ACK, ack_seq, p, 2U); // ③ 组整帧，返回帧长
 }
 
 /* 便捷：组一个 NAK 帧 (payload = ack_seq u16 + err u8) */

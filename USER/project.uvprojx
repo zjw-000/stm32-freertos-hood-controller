@@ -641,6 +641,41 @@
             </File>
           </Files>
         </Group>
+        <Group>
+          <GroupName>Shared</GroupName>
+          <Files>
+            <File>
+              <FileName>boot_config.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\boot_config.h</FilePath>
+            </File>
+            <File>
+              <FileName>boot_crc.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\boot_crc.h</FilePath>
+            </File>
+            <File>
+              <FileName>boot_meta.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\boot_meta.h</FilePath>
+            </File>
+            <File>
+              <FileName>iap_hmac_key.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\iap_hmac_key.h</FilePath>
+            </File>
+            <File>
+              <FileName>iap_proto.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\iap_proto.h</FilePath>
+            </File>
+            <File>
+              <FileName>sha256.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\sha256.h</FilePath>
+            </File>
+          </Files>
+        </Group>
       </Groups>
     </Target>
   </Targets>
@@ -650,5 +685,14 @@
     <components/>
     <files/>
   </RTE>
+
+  <LayerInfo>
+    <Layers>
+      <Layer>
+        <LayName>project</LayName>
+        <LayPrjMark>1</LayPrjMark>
+      </Layer>
+    </Layers>
+  </LayerInfo>
 
 </Project>

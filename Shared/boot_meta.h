@@ -25,6 +25,7 @@
 #include "boot_crc.h"
 
 /* 计算并回填 meta_crc32 */
+// 写账本前，都要对账本进行一次CRC计算，作为下次接收时验证是否出现账本信息错误
 static __inline void BootMeta_Finalize(BootMeta_t *m)
 {
     m->meta_crc32 = BootCrc32((const uint8_t *)m, (uint32_t)(sizeof(BootMeta_t) - 4U));

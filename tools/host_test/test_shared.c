@@ -145,5 +145,32 @@ int main(void){
         printf("META_BADMAGIC_VALID %d\n", BootMeta_IsValid(&tmp));
     }
 
+    /* ---- 12. IAP 会话"豁免时限"判定（A档 P1 修复） ----
+     * 看门狗用它决定"还要不要继续豁免升级会话"；判据是 boot_config.h 里的纯宏，
+     * 输入只有三个 tick：now / last_active(最后一帧到达) / start_at(会话起点)，
+     * 内部用无符号相减，天然处理 tick 回绕。这里只覆盖边界，
+     * 交叉验证交给 Python 侧按同一规则独立重算。 */
+    {
+        uint32_t t0 = 1000U;
+
+        printf("SESS_RX_TIMEOUT_MS %u\n", (unsigned)IAP_RX_TIMEOUT_MS);
+        printf("SESS_MAX_MS %u\n",        (unsigned)IAP_SESSION_MAX_MS);
+
+        /* (1) 刚收过帧、会话很新 -> 不超时 */
+        printf("SESS_FRESH %u\n",       (unsigned)IAP_SESSION_IS_STALE(t0 + 1000U, t0 + 1000U, t0));
+        /* (2) 帧间静默恰好等于阈值 -> 不超时（判据是 > 不是 >=） */
+        printf("SESS_SILENT_EDGE %u\n",(unsigned)IAP_SESSION_IS_STALE(t0 + 5000U, t0, t0));
+        /* (3) 帧间静默超阈值 1ms -> 超时（上位机掉线） */
+        printf("SESS_SILENT_EXP %u\n", (unsigned)IAP_SESSION_IS_STALE(t0 + 5001U, t0, t0));
+        /* (4) 帧一直在来，会话总时长恰好到上限 -> 不超时 */
+        printf("SESS_TOTAL_EDGE %u\n", (unsigned)IAP_SESSION_IS_STALE(t0 + 60000U, t0 + 60000U, t0));
+        /* (5) 帧一直在来，会话总时长超上限 1ms -> 超时（防在线但异常拖长） */
+        printf("SESS_TOTAL_EXP %u\n",  (unsigned)IAP_SESSION_IS_STALE(t0 + 60001U, t0 + 60001U, t0));
+        /* (6) tick 回绕：last_active 在 2^32 附近，now 已绕回小值，静默仅 1500ms -> 不超时 */
+        printf("SESS_WRAP_OK %u\n",    (unsigned)IAP_SESSION_IS_STALE(1000U, 0xFFFFFFFFU - 499U, 0xFFFFFFFFU - 100U));
+        /* (7) tick 回绕 + 静默 6001ms -> 超时 */
+        printf("SESS_WRAP_EXP %u\n",   (unsigned)IAP_SESSION_IS_STALE(1000U, 1000U - 6001U, 1000U - 60000U));
+    }
+
     return 0;
 }
