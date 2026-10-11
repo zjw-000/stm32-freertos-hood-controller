@@ -114,11 +114,13 @@ void USART1_IRQHandler(void)
         // 2. 停用 DMA 后 CNDTR 冻结，此刻读数才是本帧真实长度（A档 P1: 在中断里锁存快照，
         //    任务侧不再直接读 CNDTR，避免"DMA 已被重新武装"导致读到满缓冲的竞态）
         DMA_Cmd(DMA1_Channel5, DISABLE);
+				// CNDTR是递减计数器，每来一个字节就减1
         rx_len = (uint16_t)(buff_size - DMA_GetCurrDataCounter(DMA1_Channel5));
 
         // 3. 【A档 P0 门控】只有"升级会话进行中"或"帧头确实是 0xA5 0x5A 的合法 IAP 帧"
         //    才走升级路径。旧实现无条件停 DMA + 给信号量，串口上任何噪声字节
         //    都会被当成固件帧去唤醒 iap_task，干扰正常串口接收。
+				// 检查帧头A5 5A和长度是否大于 7字节（2+1+2+2）
         if ((g_iapUpgradeActive != 0U) ||
             ((rx_len >= IAP_FRAME_HDR_LEN) &&
              (receive_buff[0] == IAP_FRAME_HEAD0) &&

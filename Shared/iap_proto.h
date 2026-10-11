@@ -112,7 +112,7 @@ static __inline int IapProto_ParseFrame(const uint8_t *buf, uint32_t avail, IapF
     uint32_t crc_calc;
     uint32_t crc_recv;
     uint16_t len;
-		
+		// 
     if (buf == 0 || f == 0) return IAP_PARSE_BAD_ARG;
 		// 检测到长度 < 7，判定为坏包
     if (avail < IAP_FRAME_HDR_LEN) return IAP_PARSE_NEED_MORE;
