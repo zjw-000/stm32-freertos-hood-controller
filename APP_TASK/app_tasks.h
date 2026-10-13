@@ -44,6 +44,11 @@ typedef struct {
     
     u8 temperature;                 /* 温度值 */
     u8 humidity;                    /* 湿度值 */
+    u8 dhtValid;                   /* Latest read succeeded and has not expired */
+    u8 gasValid;
+    u8 windValid;                  /* Fusion inputs are valid and not expired */
+    TickType_t dhtSampleTick;
+    TickType_t gasSampleTick;
     float gasConcentration;         /* 气体浓度值 */
     
     float windSpeedPWM;             /* 风速PWM值(%) */
@@ -62,6 +67,7 @@ typedef struct {
 /*-----------------------------------------------------------
  * 时序参数定义(ms)
  *----------------------------------------------------------*/
+#define SENSOR_MAX_AGE_MS          1500U   /* Expire after three sampling periods */
 #define AUTO_MODE_STARTUP_TIME      60000   /* 自动模式启动等待时间：60秒 */
 #define COOKING_EVENT_TIMEOUT       60000   /* Cooking Event超时时间：60秒 */
 #define COOKING_EVENT_DELAY_OFF     10000   /* Cooking Event结束后延时关闭：10秒 */
@@ -140,6 +146,6 @@ void System_SwitchSpeedLevel(void);         /* 切换档位 */
 void System_ToggleMotor(void);              /* 切换电机开关 */
 
 /* 获取系统状态 */
-SystemState_t* System_GetState(void);
+void System_GetState(SystemState_t *snapshot); /* Copy under mutex; task context only */
 
 #endif /* __APP_TASKS_H */

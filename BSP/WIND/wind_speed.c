@@ -62,11 +62,11 @@ void WindSpeed_Update(u8 temp, u8 humidity, float gas)
     /* 1. 传感器归一化 */
     /* 温度影响系数: f_T = (T - T_base) / (T_max - T_base) */
     // 比如温度，假设基础温度是 25℃（0分），极限是 65℃（1分/满分）。如果现在测出来是 45℃，那得分就是(45-25)/(65-25)=0.5 分。
-    g_windSpeedData.f_T = (temp - TEMP_BASE) / (TEMP_MAX - TEMP_BASE);
+    g_windSpeedData.f_T = ((float)temp - TEMP_BASE) / (TEMP_MAX - TEMP_BASE);
     g_windSpeedData.f_T = Constrain(g_windSpeedData.f_T, 0.0f, 1.0f);
     
     /* 湿度影响系数: f_H = (H - H_base) / (H_max - H_base) */
-    g_windSpeedData.f_H = (humidity - HUMIDITY_BASE) / (HUMIDITY_MAX - HUMIDITY_BASE);
+    g_windSpeedData.f_H = ((float)humidity - HUMIDITY_BASE) / (HUMIDITY_MAX - HUMIDITY_BASE);
     g_windSpeedData.f_H = Constrain(g_windSpeedData.f_H, 0.0f, 1.0f);
     
     /* 气体浓度影响系数: f_G = (G - G_base) / (G_max - G_base) */

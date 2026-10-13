@@ -6,6 +6,7 @@
 ************************/  
 #include "mq2.h"
 #include "delay.h"
+#include <float.h>
 #include <math.h> 
 
 /**
@@ -65,6 +66,7 @@ void MQ2_Init(void)
 u16 MQ2_GetAdcValue(void)
 {
     u16 adc_value;
+    u32 remaining = 100000U;
     
     /* 配置ADC1通道4，采样时间239.5个周期 */
         // 1. 挑选 PA4（通道4），并给它充足的采样时间（239.5个周期，充饱电再测更准）
@@ -72,11 +74,17 @@ u16 MQ2_GetAdcValue(void)
     
     /* 启动ADC转换 */
     // 2. 下达命令：“开工！量一下！”
+    ADC_ClearFlag(ADC1, ADC_FLAG_EOC);
     ADC_SoftwareStartConvCmd(ADC1, ENABLE);
     
     /* 等待转换完成 */
     // 3. 等待指针停稳（等待转换完成标志位 EOC）
-    while (!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC));
+    while (!ADC_GetFlagStatus(ADC1, ADC_FLAG_EOC)) {
+        if (--remaining == 0U) {
+            ADC_SoftwareStartConvCmd(ADC1, DISABLE);
+            return 0xFFFFU;
+        }
+    }
     
     /* 获取转换结果 */
     // 4. 读出尺子上的刻度数字（0 ~ 4095）并返回
@@ -87,40 +95,40 @@ u16 MQ2_GetAdcValue(void)
 
 /**
  * @brief 获取气体浓度值（多次采样取平均）
- * @return 气体浓度值，范围0-500
- * @note 将ADC值(0-4095)映射到气体浓度(0-500)
+ * @return 1: 成功写入浓度；0: ADC超时或数据无效（不修改输出）
+ * @note 保留原有10次平均和浓度换算公式，不设置2000上限
  */
-float MQ2_GetGasConcentration(void)
+u8 MQ2_ReadGasConcentration(float *value)
 {
     u8 i;
+    u16 adc, adc_avg;
     u32 sum = 0;
-    u16 adc_avg;
-	float tmep,RS;
-    float gas_concentration;
-    
-    /* 采样10次取平均值 */
-    // 1. 连续测 10 次，把抖动过滤掉（求平均值）
-    for (i = 0; i < 10; i++)
-    {
-        sum += MQ2_GetAdcValue();
+    float voltage, resistance, gas;
+    if (value == 0) return 0;
+    for (i = 0; i < 10; i++) {
+        adc = MQ2_GetAdcValue();
+        if (adc > 4095U) return 0;
+        sum += adc;
         delay_us(100);
     }
-    adc_avg = sum / 10;// 得到稳定的 ADC 平均刻度 (0~4095)
-
-/*获取模拟电压值*/
-    // 2. 刻度转回真实的物理电压 (伏特 V)
-    // 4096个格子对应 3.3V，比例是 3.3 / 4096
-    tmep = (float)adc_avg * (3.3/4096);
-	
-	/*通过模拟电压值计算气体浓度，公式如下所示*/
-    // 3. 根据电路分压反推传感器的当前电阻 RS
-	RS=(5 - tmep)/tmep * 0.5;
-	
-    // 4. 带入 MQ2 厂家的对数特性曲线公式，算出真实气体浓度！
-    gas_concentration = pow(11.5428*2/RS,0.6549f)*100;        
-	
-    return gas_concentration;
+    /* Zero cannot be used as the divisor; saturated high ADC remains a high
+     * gas reading, never an upper threshold that inhibits extraction. */
+    adc_avg = (u16)(sum / 10U);
+    if (adc_avg == 0U) return 0;
+    voltage = (float)adc_avg * (3.3 / 4096);
+    resistance = (5 - voltage) / voltage * 0.5;
+    gas = pow(11.5428 * 2 / resistance, 0.6549f) * 100;
+    if (!(gas >= 0.0f && gas <= FLT_MAX)) return 0;
+    *value = gas;
+    return 1;
 }
+
+float MQ2_GetGasConcentration(void)
+{
+    float value;
+    return MQ2_ReadGasConcentration(&value) ? value : -1.0f;
+}
+
 
 /**
  * @brief 检测气体浓度是否超过阈值
@@ -130,7 +138,7 @@ float MQ2_GetGasConcentration(void)
 u8 MQ2_IsGasDetected(u16 threshold)
 {
         // 拿到当前计算出的浓度
-    u16 gas_value = MQ2_GetGasConcentration();
+    float gas_value = MQ2_GetGasConcentration();
     
         // 如果浓度超过了设定的警戒线（比如厨房着火或燃气泄漏）
     if (gas_value > threshold)

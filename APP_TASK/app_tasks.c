@@ -85,8 +85,6 @@ static volatile uint32_t s_taskLast[7];
 static volatile uint32_t s_healthyRounds;
 volatile uint32_t g_minFreeHeap;
 volatile uint32_t g_startStackFree,g_iapStackFree;
-static volatile uint32_t s_sensorValidTick;
-static volatile uint8_t s_sensorValid;
 static void Heartbeat(uint16_t bit) {
  unsigned int i=0;uint16_t b=bit;
  while((b>>=1)!=0)i++;
@@ -107,7 +105,7 @@ void vApplicationStackOverflowHook(TaskHandle_t task,char *name){(void)task;(voi
 
  *----------------------------------------------------------*/
 
-SystemState_t g_systemState;                /* 系统状态 */
+static SystemState_t g_systemState;                /* 系统状态 */
 
 SemaphoreHandle_t g_dataMutex = NULL;       /* 数据互斥信号量 */
 
@@ -170,6 +168,45 @@ typedef enum {
 
 
 static AutoModeState_t g_autoModeState = AUTO_STATE_STARTUP;
+/* After System_Init, all system/auto state accesses use g_dataMutex.
+ * Only MotorControlTask owns normal motor/PID writes. OTA/fatal may stop immediately.
+ * The lock covers bounded calculations/register writes only, never peripheral waits. */
+static u8 s_pidReset = 1;
+static TickType_t s_windDhtTick, s_windGasTick;
+
+/* Caller holds g_dataMutex. Invalid readings retain their last numeric value
+ * for diagnostics, but can never drive control or a cooking event. */
+static void State_ExpireSensorsLocked(TickType_t now)
+{
+    if ((TickType_t)(now - g_systemState.dhtSampleTick) > pdMS_TO_TICKS(SENSOR_MAX_AGE_MS))
+        g_systemState.dhtValid = 0;
+    if ((TickType_t)(now - g_systemState.gasSampleTick) > pdMS_TO_TICKS(SENSOR_MAX_AGE_MS))
+        g_systemState.gasValid = 0;
+    if (!g_systemState.dhtValid || !g_systemState.gasValid ||
+        (TickType_t)(now - s_windDhtTick) > pdMS_TO_TICKS(SENSOR_MAX_AGE_MS) ||
+        (TickType_t)(now - s_windGasTick) > pdMS_TO_TICKS(SENSOR_MAX_AGE_MS)) {
+        g_systemState.windValid = 0;
+        g_systemState.windSpeedPWM = 0.0f;
+        g_systemState.cookingEventActive = 0;
+    }
+    if (!g_systemState.gasValid) {
+        g_systemState.antiBackflowActive = 0;
+        g_systemState.gasThreshold = GAS_THRESHOLD_NORMAL;
+    }
+}
+
+/* Reset mode-owned state even for a quick exit/re-entry between task periods. */
+static void State_SetModeLocked(WorkMode_t mode)
+{
+    g_systemState.currentMode = mode;
+    g_systemState.antiBackflowActive = 0;
+    g_systemState.gasThreshold = GAS_THRESHOLD_NORMAL;
+    g_systemState.autoModeCounter = 0;
+    g_systemState.cookingEventCounter = 0;
+    g_autoModeState = AUTO_STATE_STARTUP;
+    s_pidReset = 1;
+}
+
 
 
 
@@ -236,6 +273,8 @@ static const char* AutoStateNames[] = {
 void System_Init(void)
 {
 
+    /* Before scheduler start: no mutex is needed yet. */
+    memset(&g_systemState, 0, sizeof(g_systemState));
     /* 初始化系统状态 */
 
     //系统模式标志：默认设置待机模式
@@ -624,43 +663,40 @@ void KeyScanTask(void *pvParameters)
  *----------------------------------------------------------*/
 
 void SensorTask(void *pvParameters)
-
 {
-    // 温度、湿度值
-    u8 temp,humi;
-    // 气体浓度值
-    float gasValue;
-    u8 ret;
-    while (1)
-    {
-        Heartbeat(HB_SENSOR);   /* A档P4: 报告我还在跑 */
-        /* 读取DHT11数据 */
-        ret = DHT_Read_Data(&temp,&humi,GPIOC, GPIO_Pin_14, &dht);
-        if (ret == 1)/*如果校验成功*/
-        {
-            s_sensorValid=1;s_sensorValidTick=xTaskGetTickCount();
-            /*如果此处获取2个传感器数据使用同一把锁，会导致占用资源时间过长，
-            更容易带来优先级反转问题；因此此处采用两把锁*/
-            if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
-            {
-                g_systemState.temperature = temp;
-                g_systemState.humidity = humi;
-                xSemaphoreGive(g_dataMutex);
-            }
-        /* 读取MQ2数据 */
-            gasValue = MQ2_GetGasConcentration();
-            if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
-            {
-                g_systemState.gasConcentration = gasValue;
-                xSemaphoreGive(g_dataMutex);
-            }
+    u8 temp = 0, humi = 0, dhtOK, gasOK;
+    float gasValue = 0.0f;
+    (void)pvParameters;
+    while (1) {
+        Heartbeat(HB_SENSOR);
+        /* Independent reads outside the state lock; publish failure as well as success. */
+        dhtOK = DHT_Read_Data(&temp, &humi, GPIOC, GPIO_Pin_14, &dht);
+        xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+        g_systemState.dhtValid = (dhtOK == 1 && humi <= 100);
+        if (g_systemState.dhtValid) {
+            g_systemState.temperature = temp;
+            g_systemState.humidity = humi;
+            g_systemState.dhtSampleTick = xTaskGetTickCount();
         }
-#if SENSOR_DEBUG    /*传感器数据调试，右键点击该宏--goto definition--将0改成1即可使用*/        
-        printf("Temp: %d, Humi: %d, Gas: %.2f\r\n", temp, humi, gasValue);
+        State_ExpireSensorsLocked(xTaskGetTickCount());
+        xSemaphoreGive(g_dataMutex);
+
+        gasOK = MQ2_ReadGasConcentration(&gasValue);
+        xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+        g_systemState.gasValid = gasOK;
+        if (gasOK) {
+            g_systemState.gasConcentration = gasValue;
+            g_systemState.gasSampleTick = xTaskGetTickCount();
+        }
+        State_ExpireSensorsLocked(xTaskGetTickCount());
+        xSemaphoreGive(g_dataMutex);
+#if SENSOR_DEBUG
+        printf("DHT:%u Temp:%u Humi:%u MQ2:%u Gas:%.2f\r\n", dhtOK, temp, humi, gasOK, gasValue);
 #endif
-        delay_ms(500);  /* 500ms采集周期 */
+        delay_ms(500);
     }
 }
+
 
 
 /*-----------------------------------------------------------
@@ -671,37 +707,27 @@ void SensorTask(void *pvParameters)
 
 void WindSpeedTask(void *pvParameters)
 {
-    // 温度、湿度、气体浓度值
-    u8 temp, humidity;
-    float gas;  
-    /*如果此处获取传感器和更新系统状态使用同一把锁，会导致占用资源时间过长，更容易带来优先级反转问题*/
-    while (1)
-    {
-        Heartbeat(HB_WINDSPEED);   /* A档P4: 报告我还在跑 */
-        /* 获取传感器数据 */
-        if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
-        {
-            temp = g_systemState.temperature;
-            humidity = g_systemState.humidity;
-            gas = (float)g_systemState.gasConcentration;
-            xSemaphoreGive(g_dataMutex);
-        }
-        /* 更新风速计算 */
-        // 风速算法
-        WindSpeed_Update(temp, humidity, gas);
-        /* 更新系统状态 */
-        // 更新电机速度PWM值和Cooking Event状态
-        if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
-        {
+    (void)pvParameters;
+    while (1) {
+        Heartbeat(HB_WINDSPEED);
+        xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+        State_ExpireSensorsLocked(xTaskGetTickCount());
+        if (g_systemState.dhtValid && g_systemState.gasValid) {
+            /* Bounded arithmetic under the lock prevents publishing an old result
+             * after SensorTask has already reported a newer sample/failure. */
+            WindSpeed_Update(g_systemState.temperature, g_systemState.humidity,
+                             g_systemState.gasConcentration);
             g_systemState.windSpeedPWM = WindSpeed_GetPWM();
             g_systemState.cookingEventActive = WindSpeed_IsCookingEvent();
-            xSemaphoreGive(g_dataMutex);
+            s_windDhtTick = g_systemState.dhtSampleTick;
+            s_windGasTick = g_systemState.gasSampleTick;
+            g_systemState.windValid = 1;
         }
-        delay_ms(100);  /* 100ms计算周期 */
-
+        xSemaphoreGive(g_dataMutex);
+        delay_ms(100);
     }
-
 }
+
 
 /*-----------------------------------------------------------
 
@@ -713,321 +739,90 @@ void WindSpeedTask(void *pvParameters)
 
 void MotorControlTask(void *pvParameters)
 {
-    float pidOutput;
-    while (1)
-    {
-        // CCR寄存器的比较值，用于设置PWM占空比
-        // CCR=0表示PWM占空比为0%，CCR=MAXCCR表示PWM占空比为100%
-        u16 pwmCompare = 0;
-        Heartbeat(HB_MOTOR);   /* A档P4: 报告电机任务还在跑（必须放在变量声明之后，C90 不允许声明出现在语句之后） */
-        if(g_iapUpgradeActive || !s_appReady){motor_stop();vTaskDelay(pdMS_TO_TICKS(50));continue;}
-        /* 获取实际转速 */
-
-        if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
-
-        {
-
-            g_systemState.actualRPM = speed;
-
-            xSemaphoreGive(g_dataMutex);
-
-        }
-
-        
-
-        switch (g_systemState.currentMode)
-
-        {
-
-            // 待机模式：电机停止，但仍计算风速
-
+    float pwm;
+    u8 run, usePID;
+    (void)pvParameters;
+    while (1) {
+        Heartbeat(HB_MOTOR);
+        xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+        State_ExpireSensorsLocked(xTaskGetTickCount());
+        run = 0; usePID = 0; pwm = 0.0f;
+        if (!g_iapUpgradeActive && s_appReady) {
+            switch (g_systemState.currentMode) {
             case MODE_STANDBY:
-
-                /* 待机模式：电机停止，但仍计算风速 */
-
-                motor_stop();
-
-                g_systemState.motorRunning = 0;
-
-                g_systemState.autoModeCounter = 0;
-
-                g_systemState.cookingEventCounter = 0;
-
-                g_autoModeState = AUTO_STATE_STARTUP;
-
                 break;
-
-            
-
-            // 手动模式：根据高、低档位设置目标转速，使用PID控制电机
-
             case MODE_MANUAL:
-
-                /* 手动模式：PID控制电机转速 */
-
-                if(g_systemState.motorRunning == 0)
-
-                {
-
-                    // 使能H桥驱动电路
-
-                    motor_start();
-
-                    g_systemState.motorRunning = 1;
-
-                }
-
-                // 根据档位设置目标转速，计算PID输出，并设置电机PWM
-
-                if (g_systemState.motorRunning)
-
-                {
-
-                    /*1.设置目标转速档位;2.计算PID输出;3.设置电机PWM*/
-
-                    // speedLevel = SPEED_LOW或SPEED_HIGH，默认为SPEED_LOW
-
-                    g_systemState.targetRPM = WindSpeed_GetTargetRPM(g_systemState.speedLevel);
-
-                    // 设置PID目标转速
-
-                    PID_SetTarget(&g_speedPID, (float)g_systemState.targetRPM);
-
-                    /*传入实际转速，计算控制输出*/
-
-                    pidOutput = PID_Calculate(&g_speedPID, speed);
-
-                    /*把PID输出转换为PWM*/
-
-                    motor_pwm_set(pidOutput);
-
-                }
-
+                run = 1; usePID = 1;
                 break;
-
-            
-
-            // 自动模式：根据传感器数据自动调节电机转速
-
             case MODE_AUTO:
-
-                /* 自动模式状态机 */
-
-                switch (g_autoModeState)
-
-                {
-
-                    // 启动阶段：以最小转速运行，等待Cooking Event
-
-                    case AUTO_STATE_STARTUP:
-
-                        if (!g_systemState.motorRunning)
-
-                        {
-
-                            g_systemState.motorRunning = 1;
-
-                            // 使能H桥驱动电路
-
-                            motor_start();
-
-                        }
-
-
-
-                        /* 使用最小转速代表自动模式开启 */                       
-
-                        {
-
-                            // 占空比PWM_MIN = 20，默认最小转速为20%，乘以10是因为motor_pwm_set函数的参数范围是0-1000，而PWM_MIN是0-100
-
-                            motor_pwm_set(PWM_MIN*10);
-
-                        }
-
-                        // 在启动阶段，计时器每50ms增加50ms，直到达到AUTO_MODE_STARTUP_TIME（60秒），如果在此期间检测到Cooking Event，则进入Cooking阶段
-
-                        g_systemState.autoModeCounter += 50;
-
-                        // 检测到Cooking Event，进入激活Cooking事件
-
-                        if (g_systemState.cookingEventActive)
-
-                        {
-
-                            /* 检测到Cooking Event */
-
-                            g_autoModeState = AUTO_STATE_COOKING;
-
-                        }
-
-                        // 如果60秒内未检测到Cooking Event，关闭自动模式，切换到待机模式，并停止电机运行
-
-                        else if (g_systemState.autoModeCounter >= AUTO_MODE_STARTUP_TIME)
-
-                        {
-
-                            /* 60秒内无Cooking Event，关闭自动模式 */
-
-                            // 关闭自动模式时，切换到待机模式，并停止电机运行
-
-                            g_systemState.currentMode = MODE_STANDBY;
-
-                            motor_stop();
-
-                            g_systemState.motorRunning = 0;
-
-                        }
-
-                        break;
-
-                    
-
-                    // Cooking Event激活阶段：根据传感器数据自动调节电机转速
-
-                    case AUTO_STATE_COOKING:
-
-                        {
-
-                            /*读取WindSpeedTask风速算法计算得到的值，MAXCCR为最大占空比*/
-
-                            // MAXCCR = 1000
-
-                            pwmCompare = WindSpeed_GetPWMCompare(MAXCCR);
-
-                            motor_pwm_set(pwmCompare);
-
-                        }
-
-                        
-
-                        g_systemState.cookingEventCounter += 50;
-
-                        
-
-                        // 如果Cooking Event结束，进入延时关闭阶段；如果Cooking Event持续超过60秒，关闭自动模式
-
-                        if (!g_systemState.cookingEventActive)
-
-                        {
-
-                            /* Cooking Event结束 */
-
-                            g_autoModeState = AUTO_STATE_DELAY_OFF;
-
-                            g_systemState.cookingEventCounter = 0;
-
-                        }
-
-                        // 如果Cooking Event持续超过60秒，关闭自动模式
-
-                        else if (g_systemState.cookingEventCounter >= COOKING_EVENT_TIMEOUT)
-
-                        {
-
-                            /* Cooking Event持续超过60秒，关闭自动模式 */
-
-                            g_systemState.currentMode = MODE_STANDBY;
-
-                            motor_stop();
-
-                            g_systemState.motorRunning = 0;
-
-                        }
-
-                        break;
-
-                    
-
-                    // 延时关闭阶段：Cooking Event结束后，延时10秒关闭电机
-
-                    case AUTO_STATE_DELAY_OFF:
-
-                        /* 延时关闭阶段 */
-
-                        {
-
-                            /*依据已知风速输出转速，MAXCCR为最大占空比*/
-
-                            pwmCompare = WindSpeed_GetPWMCompare(MAXCCR);
-
-                            motor_pwm_set(pwmCompare);
-
-                        }
-
-                        
-
-                        g_systemState.cookingEventCounter += 50;
-
-                        
-
-                        if (g_systemState.cookingEventActive)
-
-                        {
-
-                            /* 又检测到Cooking Event */
-
-                            g_autoModeState = AUTO_STATE_COOKING;
-
-                            g_systemState.cookingEventCounter = 0;
-
-                        }
-
-                        else if (g_systemState.cookingEventCounter >= COOKING_EVENT_DELAY_OFF)
-
-                        {
-
-                            /* 10秒延时结束，关闭自动模式 */
-
-                            g_systemState.currentMode = MODE_STANDBY;
-
-                            motor_stop();
-
-                            g_systemState.motorRunning = 0;
-
-                        }
-
-                        break;
-
+                if (!g_systemState.dhtValid || !g_systemState.gasValid) {
+                    /* Keep the selected mode, stop safely, restart its timing only
+                     * once fresh inputs have recovered. */
+                    g_autoModeState = AUTO_STATE_STARTUP;
+                    g_systemState.autoModeCounter = 0;
+                    g_systemState.cookingEventCounter = 0;
+                    break;
                 }
-
+                if (!g_systemState.windValid) break;
+                run = 1;
+                pwm = g_systemState.windSpeedPWM * MAXCCR / 100.0f;
+                switch (g_autoModeState) {
+                case AUTO_STATE_STARTUP:
+                    pwm = PWM_MIN * MAXCCR / 100.0f;
+                    g_systemState.autoModeCounter += 50;
+                    if (g_systemState.cookingEventActive)
+                        g_autoModeState = AUTO_STATE_COOKING;
+                    else if (g_systemState.autoModeCounter >= AUTO_MODE_STARTUP_TIME)
+                        run = 0;
+                    break;
+                case AUTO_STATE_COOKING:
+                    g_systemState.cookingEventCounter += 50;
+                    if (!g_systemState.cookingEventActive) {
+                        g_autoModeState = AUTO_STATE_DELAY_OFF;
+                        g_systemState.cookingEventCounter = 0;
+                    } else if (g_systemState.cookingEventCounter >= COOKING_EVENT_TIMEOUT)
+                        run = 0;
+                    break;
+                case AUTO_STATE_DELAY_OFF:
+                    g_systemState.cookingEventCounter += 50;
+                    if (g_systemState.cookingEventActive) {
+                        g_autoModeState = AUTO_STATE_COOKING;
+                        g_systemState.cookingEventCounter = 0;
+                    } else if (g_systemState.cookingEventCounter >= COOKING_EVENT_DELAY_OFF)
+                        run = 0;
+                    break;
+                }
+                if (!run) State_SetModeLocked(MODE_STANDBY);
                 break;
-
-            
-
-            // 防回流模式：由防回流任务控制
-
             case MODE_ANTI_BACKFLOW:
-
-                /* 防回流模式：由防回流任务控制 */
-
-                if (g_systemState.antiBackflowActive && g_systemState.motorRunning)
-
-                {
-
-                    /* 使用用户设定的档位转速 */
-
-                    g_systemState.targetRPM = WindSpeed_GetTargetRPM(g_systemState.speedLevel);
-
-                    PID_SetTarget(&g_speedPID, (float)g_systemState.targetRPM);
-
-                    pidOutput = PID_Calculate(&g_speedPID, speed);
-
-                    motor_pwm_set(pidOutput);
-
-                }
-
+                run = g_systemState.gasValid && g_systemState.antiBackflowActive;
+                usePID = run;
                 break;
-
+            }
         }
-
-        
-
-        delay_ms(50);   /* 50ms控制周期 */
-
+        if (s_pidReset || !run) {
+            PID_Reset(&g_speedPID);
+            s_pidReset = 0;
+        }
+        g_systemState.targetRPM = 0;
+        if (run) {
+            if (usePID) {
+                g_systemState.targetRPM = WindSpeed_GetTargetRPM(g_systemState.speedLevel);
+                PID_SetTarget(&g_speedPID, (float)g_systemState.targetRPM);
+                pwm = PID_Calculate(&g_speedPID, g_systemState.actualRPM);
+            }
+            /* Set PWM before enabling the bridge to avoid a stale output pulse. */
+            motor_pwm_set(pwm);
+            motor_start();
+        } else {
+            motor_stop();
+        }
+        g_systemState.motorRunning = run;
+        xSemaphoreGive(g_dataMutex);
+        delay_ms(50);
     }
-
 }
+
 
 
 
@@ -1042,6 +837,9 @@ void UIDisplayTask(void *pvParameters)
 {
 
     char dispBuf[32];
+    SystemState_t snapshot;
+    AutoModeState_t autoState;
+    (void)pvParameters;
 
     
 
@@ -1055,15 +853,21 @@ void UIDisplayTask(void *pvParameters)
 
     {
 
+        xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+        State_ExpireSensorsLocked(xTaskGetTickCount());
+        snapshot = g_systemState;
+        autoState = g_autoModeState;
+        xSemaphoreGive(g_dataMutex);
         Heartbeat(HB_UI);   /* A档P4: 报告我还在跑 */
 
+        Show_Str(0, 0, BLUE, WHITE, (u8*)(snapshot.motorRunning ? "Motor Started" : "Motor Stopped"), 16, 0);
         /* 显示当前模式 */
 
         /*该函数用于数字转字符串，或者是构建复杂字符串，如最后一个参数值是manual,则dispBuf的结果为Mode:manual*/
 
         // 第1行（y=20）：显示当前模式（比如 "Mode:Manual"）
 
-        sprintf(dispBuf, "Mode:%s", ModeNames[g_systemState.currentMode]);
+        sprintf(dispBuf, "Mode:%s", ModeNames[snapshot.currentMode]);
 
         Show_Str(0, 20, BLUE, WHITE, (u8*)dispBuf, 16, 0);
 
@@ -1073,7 +877,7 @@ void UIDisplayTask(void *pvParameters)
 
         // 第2行（y=40）：显示档位（比如 "Level:HIGH"）
 
-        sprintf(dispBuf, "Level:%s", SpeedLevelNames[g_systemState.speedLevel]);
+        sprintf(dispBuf, "Level:%s", SpeedLevelNames[snapshot.speedLevel]);
 
         Show_Str(0, 40, BLUE, WHITE, (u8*)dispBuf, 16, 0);
 
@@ -1083,7 +887,7 @@ void UIDisplayTask(void *pvParameters)
 
         // 第3行（y=60）：显示自动油门大小（比如 "WIND:65.0%"）
 
-        sprintf(dispBuf, "WIND:%.1f%%  ", g_systemState.windSpeedPWM);
+        sprintf(dispBuf, "WIND:%.1f%%  ", snapshot.windSpeedPWM);
 
         Show_Str(0, 60, BLUE, WHITE, (u8*)dispBuf, 16, 0);
 
@@ -1093,7 +897,7 @@ void UIDisplayTask(void *pvParameters)
 
         // 第4行（y=80）：显示当前电机的真实转速（比如 "RPM:220"）
 
-        sprintf(dispBuf, "RPM:%.0f    ", g_systemState.actualRPM);
+        sprintf(dispBuf, "RPM:%.0f    ", snapshot.actualRPM);
 
         Show_Str(0, 80, BLUE, WHITE, (u8*)dispBuf, 16, 0);
 
@@ -1101,7 +905,7 @@ void UIDisplayTask(void *pvParameters)
 
         /* 显示自动模式状态 */
 
-        sprintf(dispBuf, "Auto:%s", AutoStateNames[g_autoModeState]);
+        sprintf(dispBuf, "Auto:%s", AutoStateNames[autoState]);
 
         Show_Str(0, 100, BLUE, WHITE, (u8*)dispBuf, 16, 0);
 
@@ -1109,7 +913,7 @@ void UIDisplayTask(void *pvParameters)
 
         /* 显示自动模式启动计时 */
 
-        sprintf(dispBuf, "AMCnt:%ds  ", g_systemState.autoModeCounter / 1000);
+        sprintf(dispBuf, "AMCnt:%ds  ", snapshot.autoModeCounter / 1000);
 
         Show_Str(0, 120, BLUE, WHITE, (u8*)dispBuf, 16, 0);
 
@@ -1117,7 +921,7 @@ void UIDisplayTask(void *pvParameters)
 
         /* 显示Cooking Event计时 */
 
-        sprintf(dispBuf, "CECnt:%ds  ", g_systemState.cookingEventCounter / 1000);
+        sprintf(dispBuf, "CECnt:%ds  ", snapshot.cookingEventCounter / 1000);
 
         Show_Str(0, 140, BLUE, WHITE, (u8*)dispBuf, 16, 0);
 
@@ -1140,97 +944,30 @@ void UIDisplayTask(void *pvParameters)
  *----------------------------------------------------------*/
 
 void AntiBackflowTask(void *pvParameters)
-
 {
-
-    u8 isDetected = 0;  
-
-
-
-    while (1)
-
-    {
-
+    (void)pvParameters;
+    while (1) {
         Heartbeat(HB_ANTIBACKFLOW);
-        if(g_iapUpgradeActive || !s_appReady){vTaskDelay(pdMS_TO_TICKS(100));continue;}   /* A档P4: 报告我还在跑 */
-
-        /* 判断是否是防回流模式 */
-
-        if (g_systemState.currentMode == MODE_ANTI_BACKFLOW)
-
-        {
-
-            isDetected = (g_systemState.gasConcentration >= g_systemState.gasThreshold) ? 1 : 0;
-
-
-
-            if(isDetected)
-
-            {
-
-                if(g_systemState.gasConcentration < GAS_THRESHOLD_HIGH)/*防止在极端情况下会重启风机*/
-
-                {
-
-                        /* 气体超过NORMAL阈值，启动风机 */
-
-                        g_systemState.antiBackflowActive = 1;
-
-                        g_systemState.motorRunning = 1;
-
-                        motor_start();
-
-                        
-
-                        /* 立即切换到HIGH阈值，防止重复触发 */
-
-                        g_systemState.gasThreshold = GAS_THRESHOLD_HIGH;
-
-                }
-
-            }
-
-            //设置MQ2检测气体低于50才触发电机停止
-
-            else if(g_systemState.gasConcentration < GAS_THRESHOLD_STOP)
-
-            {
-
-                /* 气体浓度降到STOP阈值以下，停止风机 */
-
+        xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+        State_ExpireSensorsLocked(xTaskGetTickCount());
+        if (!g_iapUpgradeActive && s_appReady &&
+            g_systemState.currentMode == MODE_ANTI_BACKFLOW && g_systemState.gasValid) {
+            if (!g_systemState.antiBackflowActive &&
+                g_systemState.gasConcentration >= GAS_THRESHOLD_NORMAL)
+                g_systemState.antiBackflowActive = 1;
+            else if (g_systemState.antiBackflowActive &&
+                     g_systemState.gasConcentration < GAS_THRESHOLD_STOP)
                 g_systemState.antiBackflowActive = 0;
-
-                g_systemState.motorRunning = 0;
-
-                motor_stop();
-
-                g_systemState.gasThreshold = GAS_THRESHOLD_NORMAL;
-
-            }
-
-            
-
-        }
-
-        else
-
-        {
-
-            /* 非防回流模式，重置所有状态 */
-
+        } else {
             g_systemState.antiBackflowActive = 0;
-
-            g_systemState.gasThreshold = GAS_THRESHOLD_NORMAL;
-
         }
-
-        
-
-        delay_ms(100);  /* 100ms检测周期 */
-
+        g_systemState.gasThreshold = g_systemState.antiBackflowActive ?
+                                    GAS_THRESHOLD_STOP : GAS_THRESHOLD_NORMAL;
+        xSemaphoreGive(g_dataMutex);
+        delay_ms(100);
     }
-
 }
+
 
 
 
@@ -1249,8 +986,14 @@ void AntiBackflowTask(void *pvParameters)
 static BootMeta_t s_startMeta;
 static uint8_t App_SelfTest(void){
  uint32_t start=xTaskGetTickCount();
+ uint8_t dhtOK;
  while((uint32_t)(xTaskGetTickCount()-start)<5000U)vTaskDelay(pdMS_TO_TICKS(100));
- if(s_healthyRounds<16U || !s_sensorValid || (uint32_t)(xTaskGetTickCount()-s_sensorValidTick)>1500U)return 0;
+ xSemaphoreTake(g_dataMutex,portMAX_DELAY);
+ State_ExpireSensorsLocked(xTaskGetTickCount());
+ /* Preserve the existing DHT health gate; MQ2 failure only disables dependent control. */
+ dhtOK=g_systemState.dhtValid;
+ xSemaphoreGive(g_dataMutex);
+ if(s_healthyRounds<16U || !dhtOK)return 0;
  if(!W25QXX_Ready() || !BootStore_Read(&s_startMeta))return 0;
  return BootImage_SizeValid(&s_startMeta.active) &&
    BootCrc32((const uint8_t*)MCU_APP_ADDR,s_startMeta.active.size)==s_startMeta.active.crc32;
@@ -1270,7 +1013,7 @@ static int IapPlatform_Enter(void){
  if(!s_appReady || !W25QXX_Ready())return 0;
  xSemaphoreTake(g_dataMutex,portMAX_DELAY);
  g_iapUpgradeActive=1;s_progressTick=s_operationStart=xTaskGetTickCount();
- motor_stop();g_systemState.motorRunning=0;g_systemState.currentMode=MODE_STANDBY;
+ motor_stop();g_systemState.motorRunning=0;g_systemState.targetRPM=0;State_SetModeLocked(MODE_STANDBY);
  xSemaphoreGive(g_dataMutex);return 1;
 }
 static void IapPlatform_Exit(void){g_iapUpgradeActive=0;}
@@ -1310,69 +1053,13 @@ void iap_task(void *pvParameters){
  *----------------------------------------------------------*/
 
 void System_SwitchMode(void)
-
 {
-    if(g_iapUpgradeActive || !s_appReady)return;
-
-    if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
-
-    {
-
-        /* 模式循环切换：待机 -> 手动 -> 自动 -> 防回流 -> 待机 */
-
-        switch (g_systemState.currentMode)
-
-        {
-
-            case MODE_STANDBY:
-
-                g_systemState.currentMode = MODE_MANUAL;
-
-                break;
-
-            case MODE_MANUAL:
-
-                g_systemState.currentMode = MODE_AUTO;
-
-                g_autoModeState = AUTO_STATE_STARTUP;
-
-                break;
-
-            case MODE_AUTO:
-
-                g_systemState.currentMode = MODE_ANTI_BACKFLOW;
-
-                break;
-
-            case MODE_ANTI_BACKFLOW:
-
-                g_systemState.currentMode = MODE_STANDBY;
-
-                break;
-
-        }
-
-        
-
-        /* 切换模式时停止电机（除自动模式外） */
-
-        if (g_systemState.currentMode != MODE_AUTO)
-
-        {
-
-            g_systemState.motorRunning = 0;
-
-            motor_stop();
-
-        }
-
-        
-
-        xSemaphoreGive(g_dataMutex);
-
-    }
-
+    xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+    if (!g_iapUpgradeActive && s_appReady)
+        State_SetModeLocked((WorkMode_t)((g_systemState.currentMode + 1) % 4));
+    xSemaphoreGive(g_dataMutex);
 }
+
 
 
 
@@ -1383,39 +1070,13 @@ void System_SwitchMode(void)
  *----------------------------------------------------------*/
 
 void System_SwitchSpeedLevel(void)
-
 {
-    if(g_iapUpgradeActive || !s_appReady)return;
-
-    if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
-
-    {
-
-        /* 档位循环切换：LOW -> HIGH -> LOW */
-
-        switch (g_systemState.speedLevel)
-
-        {
-
-            case SPEED_LOW:
-
-                g_systemState.speedLevel = SPEED_HIGH;
-
-                break;
-
-            case SPEED_HIGH:
-
-                g_systemState.speedLevel = SPEED_LOW;
-
-                break;
-
-        }
-
-        xSemaphoreGive(g_dataMutex);
-
-    }
-
+    xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+    if (!g_iapUpgradeActive && s_appReady)
+        g_systemState.speedLevel = g_systemState.speedLevel == SPEED_LOW ? SPEED_HIGH : SPEED_LOW;
+    xSemaphoreGive(g_dataMutex);
 }
+
 
 
 
@@ -1426,53 +1087,13 @@ void System_SwitchSpeedLevel(void)
  *----------------------------------------------------------*/
 
 void System_ToggleMotor(void)
-
 {
-    if(g_iapUpgradeActive || !s_appReady)return;
-
-    if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
-
-    {
-
-        if (g_systemState.motorRunning)
-
-        {
-
-            /* 关闭电机：强制切换到待机模式，确保MotorControlTask不会重新拉起电机 */
-
-            motor_stop();
-
-            g_systemState.motorRunning = 0;
-
-            g_systemState.currentMode = MODE_STANDBY;
-
-            Show_Str(0, 0, BLUE, WHITE, "Motor Stopped", 16, 0);
-
-        }
-
-        else
-
-        {
-
-            /* 开启电机：强制切换到手动模式，确保MotorControlTask持续驱动电机 */
-
-            motor_start();
-
-            g_systemState.motorRunning = 1;
-
-            g_systemState.currentMode = MODE_MANUAL;
-
-            Show_Str(0, 0, BLUE, WHITE, "Motor Started", 16, 0);
-
-        }
-
-        
-
-        xSemaphoreGive(g_dataMutex);
-
-    }
-
+    xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+    if (!g_iapUpgradeActive && s_appReady)
+        State_SetModeLocked(g_systemState.motorRunning ? MODE_STANDBY : MODE_MANUAL);
+    xSemaphoreGive(g_dataMutex);
 }
+
 
 
 
@@ -1482,13 +1103,15 @@ void System_ToggleMotor(void)
 
  *----------------------------------------------------------*/
 
-SystemState_t* System_GetState(void)
-
+void System_GetState(SystemState_t *snapshot)
 {
-
-    return &g_systemState;
-
+    if (snapshot == NULL) return;
+    xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+    State_ExpireSensorsLocked(xTaskGetTickCount());
+    *snapshot = g_systemState;
+    xSemaphoreGive(g_dataMutex);
 }
+
 
 
 
@@ -1503,6 +1126,7 @@ void SpeedCalcTask(void *pvParameters)
 {
 
     int encoderCount;
+    (void)pvParameters;
 
     
 
@@ -1527,6 +1151,9 @@ void SpeedCalcTask(void *pvParameters)
             /* 计算电机转速（50ms计算一次） */
 
             speed = get_speed(encoderCount, 50);
+            xSemaphoreTake(g_dataMutex, portMAX_DELAY);
+            g_systemState.actualRPM = speed;
+            xSemaphoreGive(g_dataMutex);
 
         }
 
