@@ -114,13 +114,13 @@ static __inline int IapProto_ParseFrame(const uint8_t *buf, uint32_t avail, IapF
     uint16_t len;
 		// 
     if (buf == 0 || f == 0) return IAP_PARSE_BAD_ARG;
-		// 检测到长度 < 7，判定为坏包
+		// 检测到总长度 < 7，判定为坏包
     if (avail < IAP_FRAME_HDR_LEN) return IAP_PARSE_NEED_MORE;
 		// 检测到不是A5 5A开头，判定为坏包
     if (buf[0] != IAP_FRAME_HEAD0 || buf[1] != IAP_FRAME_HEAD1) return IAP_PARSE_BAD;
 		// 检测到A5 5A起始帧正常，开始解析bin正常分包，获取有效数据长度len(payload) = 0x0400
     len = IapProto_GetU16(&buf[5]);
-		// 检测 单帧总长度 > 1039，判定为坏包
+		// 检测 单帧有效信息总长度 > 1039，判定为坏包
     if (len > IAP_MAX_FRAME_LEN) return IAP_PARSE_BAD;
 		// need = 7 + 1028 + 4 = 1039
     need = (uint32_t)IAP_FRAME_HDR_LEN + (uint32_t)len + IAP_FRAME_TAIL_LEN;

@@ -80,11 +80,15 @@ static void Meta_Store(const BootMeta_t *a, const BootMeta_t *b, BootMeta_t *cur
     uint32_t seq = 0U;
     uint32_t addr = BootMeta_NextSlotAddr(a, b, cur, &seq);
 
+	  // 记录当前新的序号
     cur->seq = seq;
+	  // 写入W25Q前计算账本CRC，作为后续验证写入是否正确
     BootMeta_Finalize(cur);          /* 重算 meta_crc32 */
-
+		// 擦除旧账本的信息
     W25QXX_Erase_Sector(addr / 4096U);
+	  // 喂狗保证心跳正常
     IWDG_Feed();
+	  // 正式将账本信息写入到W25Q
     W25QXX_Write((uint8_t *)cur, addr, (uint16_t)BOOT_META_SIZE);
 }
 
@@ -251,13 +255,14 @@ int main(void)
     if (meta.max_retry == 0U || meta.max_retry > 100U) {
         meta.max_retry = BOOT_META_MAX_RETRY;
     }
-
+		// 读取seq最大的账本信息，查看state是否已刷入新APP等待更新
     if (meta.ota_state == (uint32_t)OTA_STATE_PENDING_APPLY && meta.app_size > 0U) {
         /* 2. 处理待升级事件 (收到新固件，已暂存在下载区) */
 
         /* 2.1 备份老固件 (按实际长度，修 backup_size 语义) */
         app_len = Detect_App_Length();
         if (app_len > 0U) {
+		   			// 检测到APP区已有app程序
             Backup_Current_App(app_len, &meta.backup_crc32);
             meta.backup_size = app_len;
         } else {

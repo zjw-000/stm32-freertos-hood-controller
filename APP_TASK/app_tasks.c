@@ -1360,13 +1360,13 @@ typedef struct {
     uint32_t fw_size;      /* BEGIN 声明的固件总长度 */
     uint32_t fw_crc32;     /* BEGIN 声明的整镜像 CRC32 */
     uint32_t fw_version;   /* 版本号 */
-    uint32_t next_offset;  /* 期望的下一个 DATA 偏移(等于已写字节数) */
+		uint32_t next_offset;  /* 期望的下一个 DATA 偏移(等于已写字节数) */
     uint32_t recv_crc;     /* 逐帧流式 CRC32 的中间态 */
     uint32_t lastRxTick;   /* 【A档 P1 修复】最近一帧被处理的时刻(tick)，判"帧间静默" */
     uint32_t startTick;    /* 【A档 P1 修复】会话起点(收到合法 BEGIN)的时刻(tick)，判会话总时长 */
     uint16_t last_seq;     /* 上一帧序号 */
     uint8_t  active;       /* 1 = 升级会话进行中 */
-	uint8_t  fw_hmac[IAP_HMAC_LEN];  /* 【A档 P3】BEGIN 帧携带的镜像 HMAC-SHA256 */ //数组复制要用memcpy
+		uint8_t  fw_hmac[IAP_HMAC_LEN];  /* 【A档 P3】BEGIN 帧携带的镜像 HMAC-SHA256 */ //数组复制要用memcpy
 } IapSession_t;
 
 static IapSession_t s_iap;
@@ -1513,7 +1513,7 @@ static void Iap_OnEnd(const IapFrame_t *fr)
         uint32_t off = 0U;					// 已回读的偏移（从 0 开始推进）
         uint32_t chunk;							// 这一轮要读多少字节
         uint8_t  mac[IAP_HMAC_LEN]; // 实算出来的签名，等下拿去比对
-				// 把
+				// 利用sha256算法，输入特定32字节密钥，计算出一个32字节的数组
         HmacSha256_Init(&s_hmacCtx, g_iapHmacKey, IAP_HMAC_KEY_LEN);
 			// 从W25Q的下载暂存区，回读完整bin包，进行哈希签名计算检测
         while (off < s_iap.fw_size)
@@ -1540,7 +1540,7 @@ static void Iap_OnEnd(const IapFrame_t *fr)
             return;
         }
     }
-		// 读取W25Q的A/B账本，挑选较新的账本进行升级记录
+		// 读取W25Q的A/B账本，挑,选较新的账本进行升级记录
     W25QXX_Read((uint8_t*)&meta_a, SPI_META_A_ADDR, BOOT_META_SIZE);
     W25QXX_Read((uint8_t*)&meta_b, SPI_META_B_ADDR, BOOT_META_SIZE);
     (void)BootMeta_SelectBest(&meta_a, &meta_b, &meta);
