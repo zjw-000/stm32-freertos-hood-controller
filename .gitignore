@@ -32,3 +32,8 @@ __pycache__/
 *.pyc
 tools/host_test/*.exe
 tools/host_tests/*.exe
+
+# Local production secret: supply privately, never commit
+Shared/iap_production_key.h
+work/
+/temp_test_shared.exe

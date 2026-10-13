@@ -2,7 +2,7 @@
 #define __IAP_PROTO_H
 
 /********************************************************************************
- * 项目名：串口升级协议 v2 的帧编解码 (A档改造 P1)
+ * 项目名：串口升级协议 v3 的帧编解码 (A档改造 P1)
  *
  * 帧格式 (全部小端)：
  *   +------+------+------+--------+--------+--------------+----------+
@@ -12,9 +12,9 @@
  *
  * 设计要点：
  *   - 帧头双字节魔数 + 长度 + CRC32 三重防护，误码/错位帧会被 CRC 拦下；
- *   - DATA 帧的 payload 前 4 字节是**显式 offset**，所以支持乱序/重传；
+ *   - DATA 帧的 payload 前 8 字节是 session_id 和 offset，所以可校验顺序并识别重传；
  *   - 解析器是纯函数，不依赖硬件，可以在 PC 上编译跑单元测试
- *     （见 tools/test_iap_proto.py）。
+ *     （见 tools/host_tests/run_iap_selftest.py）。
  ********************************************************************************/
 
 #include <stdint.h>
@@ -121,7 +121,7 @@ static __inline int IapProto_ParseFrame(const uint8_t *buf, uint32_t avail, IapF
 		// 检测到A5 5A起始帧正常，开始解析bin正常分包，获取有效数据长度len(payload) = 0x0400
     len = IapProto_GetU16(&buf[5]);
 		// 检测 单帧有效信息总长度 > 1039，判定为坏包
-    if (len > IAP_MAX_FRAME_LEN) return IAP_PARSE_BAD;
+    if (len > IAP_MAX_PAYLOAD_LEN) return IAP_PARSE_BAD;
 		// need = 7 + 1028 + 4 = 1039
     need = (uint32_t)IAP_FRAME_HDR_LEN + (uint32_t)len + IAP_FRAME_TAIL_LEN;
 		// 检测len(buf)是否 ＜ 1039，判定为坏包

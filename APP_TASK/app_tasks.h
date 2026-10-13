@@ -82,22 +82,22 @@ typedef struct {
 /*-----------------------------------------------------------
  * 任务栈大小定义
  *----------------------------------------------------------*/
-#define TASK_START_STK_SIZE         64     /* 开始任务栈大小 */
+#define TASK_START_STK_SIZE         256     /* StackType_t units: 256 words = 1024 bytes */
 #define TASK_UI_STK_SIZE            256     /* UI显示任务栈大小 */
-#define TASK_ANTI_BACKFLOW_STK_SIZE 64     /* 防回流任务栈大小 */
-#define TASK_SENSOR_STK_SIZE        128     /* 传感器采集任务栈大小 */
-#define TASK_WIND_SPEED_STK_SIZE    64     /* 风速计算任务栈大小 */
-#define TASK_KEY_STK_SIZE           64     /* 按键扫描任务栈大小 */
-#define TASK_MOTOR_STK_SIZE         256     /* 电机控制任务栈大小 */
+#define TASK_ANTI_BACKFLOW_STK_SIZE 128     /* 防回流任务栈大小 */
+#define TASK_SENSOR_STK_SIZE        192     /* 传感器采集任务栈大小 */
+#define TASK_WIND_SPEED_STK_SIZE    128     /* 风速计算任务栈大小 */
+#define TASK_KEY_STK_SIZE           192     /* 按键扫描任务栈大小 */
+#define TASK_MOTOR_STK_SIZE         128     /* 电机控制任务栈大小 */
 #define TASK_SPEED_CALC_STK_SIZE    128     /* 速度计算任务栈大小 */
-#define TASK_IAP_STK_SIZE           256     /* IAP任务栈大小 */
-#define TASK_WDT_PRIORITY           8       /* A档P4: 看门狗任务优先级（只需每秒跑一次，给中等优先级即可） */
-#define TASK_WDT_STK_SIZE           96      /* A档P4: 看门狗任务栈大小 */
+#define TASK_IAP_STK_SIZE           512     /* IAP任务栈大小 */
+#define TASK_WDT_PRIORITY           8       /* A档P4: 看门狗任务优先级（只需每250ms检查一次） */
+#define TASK_WDT_STK_SIZE           128      /* A档P4: 看门狗任务栈大小 */
 
 /*-----------------------------------------------------------
  * A档 P4: 看门狗心跳位定义
- *   每个周期任务在自己主循环里把对应位置1；看门狗任务每 1s 检查一次，
- *   "所有位都到齐"才喂狗，否则不喂 —— 1s 后 IWDG 硬件复位。
+ *   每个周期任务在自己主循环里把对应位置1；看门狗任务每250ms检查任务新鲜度，
+ *   首次收到所有心跳且各任务最近1.5s仍在运行才喂狗；IWDG标称3s超时。
  *   这样保护的是"任务整体是否还在跑"，而不是"某个任务是否在喂狗"。
  *----------------------------------------------------------*/
 #define HB_KEYSCAN      0x0001U

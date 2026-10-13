@@ -58,18 +58,42 @@
 
 ******************************************************************************/
 
+static int s_spiError;
+#ifdef APP_USE_RTOS
+#include "FreeRTOS.h"
+#include "task.h"
+#include "semphr.h"
+static SemaphoreHandle_t s_spiMutex;
+#endif
+int SPI_BusInit(void) {
+#ifdef APP_USE_RTOS
+ if(s_spiMutex==NULL)s_spiMutex=xSemaphoreCreateRecursiveMutex();
+ return s_spiMutex!=NULL;
+#else
+ return 1;
+#endif
+}
+void SPI_BusLock(void) {
+#ifdef APP_USE_RTOS
+ if(xTaskGetSchedulerState()!=taskSCHEDULER_NOT_STARTED) {
+  configASSERT(s_spiMutex!=NULL); xSemaphoreTakeRecursive(s_spiMutex,portMAX_DELAY);
+ }
+#endif
+}
+void SPI_BusUnlock(void) {
+#ifdef APP_USE_RTOS
+ if(xTaskGetSchedulerState()!=taskSCHEDULER_NOT_STARTED)xSemaphoreGiveRecursive(s_spiMutex);
+#endif
+}
+int SPI_HasError(void){return s_spiError;}
+void SPI_ClearError(void){s_spiError=0;}
 u8 SPI_WriteByte(SPI_TypeDef* SPIx,u8 Byte)
-
 {
-
-	while((SPIx->STATR&SPI_I2S_FLAG_TXE)==RESET);		//等待发区(现在程序卡在这里说明发区不是空的不能发)  
-
-	SPIx->DATAR=Byte;	 								//发一个byte   
-
-	while((SPIx->STATR&SPI_I2S_FLAG_RXNE)==RESET);		//等待接收完一个byte  
-
-	return SPIx->DR;          	     					//返回收到的数			
-
+ uint32_t timeout=100000U;
+ while((SPIx->SR & SPI_I2S_FLAG_TXE)==0U)if(--timeout==0U){s_spiError=1;return 0xFF;}
+ SPIx->DR=Byte;timeout=100000U;
+ while((SPIx->SR & SPI_I2S_FLAG_RXNE)==0U)if(--timeout==0U){s_spiError=1;return 0xFF;}
+ return (u8)SPIx->DR;
 } 
 
 /*****************************************************************************

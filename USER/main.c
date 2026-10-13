@@ -34,7 +34,7 @@ extern void App_Confirm_Healthy(void);
 
  * - 按键1(PB1)：短按切换模式
 
- * - 按键2(PB12)：短按切换档位，长按开关风机
+ * - 按键2(PB0)：短按切换档位，长按开关风机
 
  *
 
@@ -121,6 +121,7 @@ static void Hardware_Init(void)
 /* LCD初始化 */
 
     LCD_Init();
+    (void)W25QXX_Init();
 
 /* 串口初始化 */
 
@@ -158,7 +159,7 @@ int main(void)
      * 会静默落到 Bootloader 的 weak Default_Handler，那种故障极难定位。 */
     SCB->VTOR = MCU_APP_ADDR;
 
-    /* 【A档 P4】Bootloader 跳转前已经启动了 IWDG(1s)，APP 在启动阶段也必须喂狗，
+    /* 【A档 P4】Bootloader 跳转前已启动 IWDG，并放宽至标称约6.5s，APP 在启动阶段也必须喂狗，
      * 否则还没跑到 StartTask 就会被硬件复位。这里在耗时最长的 Hardware_Init 前后各喂一次。 */
     IWDG->KR = 0x0000AAAAU;
 

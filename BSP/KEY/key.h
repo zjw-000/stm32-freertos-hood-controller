@@ -4,7 +4,7 @@
 
  * 按键1: PB1 - 模式切换
 
- * 按键2: PB12 - 档位切换/风机开关
+ * 按键2: PB0 - 档位切换/风机开关
 
  *
 
@@ -32,7 +32,7 @@
 
 #define KEY2_GPIO_PORT      GPIOB
 
-#define KEY2_GPIO_PIN       GPIO_Pin_12
+#define KEY2_GPIO_PIN       GPIO_Pin_0
 
 /* 按键电平读取（假设按下为低电平） */
 

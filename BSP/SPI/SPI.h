@@ -64,4 +64,10 @@ void SPI1_Init(void);
 
 void SPI_SetSpeed(SPI_TypeDef* SPIx,u8 SpeedSet);
 
+int SPI_BusInit(void);
+void SPI_BusLock(void);
+void SPI_BusUnlock(void);
+int SPI_HasError(void);
+void SPI_ClearError(void);
+
 #endif

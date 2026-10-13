@@ -499,6 +499,31 @@
               <FileType>1</FileType>
               <FilePath>..\STM32F10x_FWLib\src\stm32f10x_adc.c</FilePath>
             </File>
+            <File>
+              <FileName>boot_auth.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\boot_auth.h</FilePath>
+            </File>
+            <File>
+              <FileName>boot_flow.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\boot_flow.h</FilePath>
+            </File>
+            <File>
+              <FileName>boot_store.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\boot_store.h</FilePath>
+            </File>
+            <File>
+              <FileName>iap_stream.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\iap_stream.h</FilePath>
+            </File>
+            <File>
+              <FileName>iap_service.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\iap_service.h</FilePath>
+            </File>
           </Files>
         </Group>
       </Groups>

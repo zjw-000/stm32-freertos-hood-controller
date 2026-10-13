@@ -54,6 +54,10 @@
 
 #include "sha256.h"			/* A档 P3: HMAC-SHA256 验签 */
 
+#include "boot_store.h"
+#include "boot_auth.h"
+#include "iap_stream.h"
+#include "SPI.h"
 #include "iap_hmac_key.h"	/* A档 P3: 预共享密钥 */
 
 #include <stdio.h>
@@ -63,17 +67,37 @@
 #include "usart.h"	
 
 /* 【A档 P4】看门狗：初始化 + 喂狗任务（定义在本文件后半部分） */
-void Iwdg_Init_1s(void);
+void Iwdg_Init_3s(void);
 void WatchdogTask(void *pvParameters);
 /* 【A档 P1 修复】会话超时判定 / 豁免回收（定义在本文件后半部分）。
  * WatchdogTask 定义在它们之前，且"收回豁免"要由 WatchdogTask 负责，故此处先声明。 */
-static uint8_t Iap_SessionExempt(uint32_t now);
-static void    Iap_SessionDrop(void);
+
+
 
 
 /* 【A档 P0】APP 自检转正（定义在本文件后半部分，StartTask 里会调用） */
 void App_Confirm_Healthy(void);
 static uint8_t App_SelfTest(void);
+static volatile uint8_t s_appReady;
+static uint8_t s_maintenance;
+static volatile uint32_t s_progressTick,s_operationStart;
+static volatile uint32_t s_taskLast[7];
+static volatile uint32_t s_healthyRounds;
+volatile uint32_t g_minFreeHeap;
+volatile uint32_t g_startStackFree,g_iapStackFree;
+static volatile uint32_t s_sensorValidTick;
+static volatile uint8_t s_sensorValid;
+static void Heartbeat(uint16_t bit) {
+ unsigned int i=0;uint16_t b=bit;
+ while((b>>=1)!=0)i++;
+ taskENTER_CRITICAL();g_taskHeartbeat|=bit;s_taskLast[i]=xTaskGetTickCount();taskEXIT_CRITICAL();
+}
+static void FlashProgress(void){s_progressTick=xTaskGetTickCount();}
+static void FlashWait(void){vTaskDelay(pdMS_TO_TICKS(1));}
+void App_Fatal(void){motor_stop();__disable_irq();NVIC_SystemReset();for(;;){} }
+void vApplicationMallocFailedHook(void){App_Fatal();}
+void vApplicationStackOverflowHook(TaskHandle_t task,char *name){(void)task;(void)name;App_Fatal();}
+
 
 
 
@@ -89,7 +113,7 @@ SemaphoreHandle_t g_dataMutex = NULL;       /* 数据互斥信号量 */
 
 SemaphoreHandle_t g_speedCalcSemaphore = NULL;  /* 速度计算二值信号量 */
 
-SemaphoreHandle_t g_iapSemaphore = NULL;      /* IAP信号量 */
+
 
 
 
@@ -151,21 +175,9 @@ static AutoModeState_t g_autoModeState = AUTO_STATE_STARTUP;
 
 #if ifopen  /*固件升级功能，右键点击该宏--goto definition--将0改成1即可使用*/   
 
-/*****************************************************************************************************************************************************/
-
-/**定义APP程序缓冲区大小*/
-
-/**若使能为1，此时点击MAP文件会发现RAM大小为19.56KB，这是因为boot偏移了16K，再加上APP的3.56K，因此这里的RAM是boot加APP的合计***/
-
-/*需要注意不能让bootloader程序的RAM区域与APP程序的RAM区域重叠，而笔者bootloader的RAM大概为13K(忽略掉buff_size编译所得的ram大小就是boot区的ram大小)，
-
-*因此偏移了16K，为0x4000,剩下的4Kram给APP*/
-
-/******************************************************************************************************************************************************/
-
-
-
-u8 receive_buff[buff_size]  __attribute__ ((at(0X20004000)));/*将数组分配到固定的内存地址（请根据需要修改）,否则会判断固件程序失败*/
+/* Circular DMA staging buffer: ordinary linker-managed RAM, independent
+ * of the stream parser and the software RX ring. */
+u8 receive_buff[buff_size];/*将数组分配到固定的内存地址（请根据需要修改）,否则会判断固件程序失败*/
 
 	
 
@@ -295,6 +307,8 @@ void System_Init(void)
     //保护g_systemState数据结构体的访问，避免多任务同时访问导致数据不一致
 
     g_dataMutex = xSemaphoreCreateMutex();
+    configASSERT(g_dataMutex != NULL);
+    configASSERT(SPI_BusInit());
 
     
 
@@ -303,16 +317,8 @@ void System_Init(void)
     //TIM4中断通知SpeedCalcTask任务
 
     g_speedCalcSemaphore = xSemaphoreCreateBinary();
-
-
-
-    // 创建IAP信号量
-
-#if ifopen
-
-    g_iapSemaphore = xSemaphoreCreateBinary();
-
-#endif
+    configASSERT(g_speedCalcSemaphore != NULL);
+    /* IAP v3 consumes the circular DMA stream; no per-frame semaphore. */
 
 
 
@@ -329,9 +335,9 @@ void System_Init(void)
 void StartTask_Create(void)
 {
 
-    xTaskCreate(StartTask, "StartTask", TASK_START_STK_SIZE, NULL, 
+    configASSERT(xTaskCreate(StartTask, "StartTask", TASK_START_STK_SIZE, NULL,
 
-                TASK_START_PRIORITY, &xStartTaskHandle);
+                TASK_START_PRIORITY, &xStartTaskHandle)==pdPASS);
 
 }
 
@@ -349,17 +355,12 @@ volatile uint16_t g_wdtMissMask  = 0U;      /* 未到齐的心跳位（保留现
 #define IWDG_KR_ENABLE   0x0000CCCCU        /* 启动（启动后无法关闭） */
 #define IWDG_KR_WRITE    0x00005555U        /* 解锁 PR/RLR */
 
-/* 把 IWDG 配成 1s 超时：LSI≈40kHz，PR=4(64分频) -> 625Hz，RLR=625 -> 1s
- *
- * 为什么直接写寄存器而不是用 BSP 的 iwdg.c？
- *   1. 工程没把 stm32f10x_iwdg.c 加进 Keil 文件组，直接写寄存器不增链接依赖；
- *   2. 只有 4 个寄存器，代码量远小于调用库函数。
- * 注意：IWDG 一旦启动就关不掉；BL 跳 APP 前已启动(1s)，这里只是重配 + 先喂一次。 */
-void Iwdg_Init_1s(void)
+/* Nominal 3 s timeout; supervise every 250 ms, leaving LSI tolerance margin. */
+void Iwdg_Init_3s(void)
 {
     IWDG->KR  = IWDG_KR_WRITE;      /* 解锁 PR/RLR 写保护 */
     IWDG->PR  = 4U;                 /* 预分频 = 64 */
-    IWDG->RLR = 625U;               /* 重装载值 = 625 */
+    IWDG->RLR = 1875U;               /* 重装载值 = 625 */
     while (IWDG->SR != 0U)          /* 等 PR/RLR 同步完成(PVU/RVU) */
     {
     }
@@ -377,9 +378,11 @@ void StartTask(void *pvParameters)
 {
 
     /* 【A档 P4】尽早重配并喂一次看门狗：
-     * Bootloader 跳转前已启动 IWDG(1s)，APP 从复位向量跑到这里若超过 1s 就会被复位，
-     * 所以第一件事就是重配成 1s 并喂狗，把启动时间余量抢回来。 */
-    Iwdg_Init_1s();
+     * Bootloader 跳转前已放宽 IWDG 启动时限，APP 从复位向量跑到这里必须在启动宽限期内，
+     * 所以第一件事就是重配成约 3s 并喂狗，把启动时间余量抢回来。 */
+    Iwdg_Init_3s();
+    s_maintenance=(KEY1_READ()==KEY_PRESSED_LEVEL);
+    W25QXX_SetHooks(FlashProgress,FlashWait);
 
     taskENTER_CRITICAL();   /* 进入临界区 */
 
@@ -389,9 +392,9 @@ void StartTask(void *pvParameters)
 
     // 优先级是4，栈空间是64字节，调用KeyScanTask函数，任务句柄是xKeyScanTaskHandle
 
-    xTaskCreate(KeyScanTask, "KeyScan", TASK_KEY_STK_SIZE, NULL,
+    configASSERT(xTaskCreate(KeyScanTask, "KeyScan", TASK_KEY_STK_SIZE, NULL,
 
-                TASK_KEY_PRIORITY, &xKeyScanTaskHandle);
+                TASK_KEY_PRIORITY, &xKeyScanTaskHandle)==pdPASS);
 
     
 
@@ -399,9 +402,9 @@ void StartTask(void *pvParameters)
 
     // 优先级是3，栈空间是128字节，调用SensorTask函数，任务句柄是xSensorTaskHandle
 
-    xTaskCreate(SensorTask, "Sensor", TASK_SENSOR_STK_SIZE, NULL,
+    configASSERT(xTaskCreate(SensorTask, "Sensor", TASK_SENSOR_STK_SIZE, NULL,
 
-                TASK_SENSOR_PRIORITY, &xSensorTaskHandle);
+                TASK_SENSOR_PRIORITY, &xSensorTaskHandle)==pdPASS);
 
     
 
@@ -409,9 +412,9 @@ void StartTask(void *pvParameters)
 
     // 优先级是3，栈空间是64字节，调用WindSpeedTask函数，任务句柄是xWindSpeedTaskHandle
 
-    xTaskCreate(WindSpeedTask, "WindSpeed", TASK_WIND_SPEED_STK_SIZE, NULL,
+    configASSERT(xTaskCreate(WindSpeedTask, "WindSpeed", TASK_WIND_SPEED_STK_SIZE, NULL,
 
-                TASK_WIND_SPEED_PRIORITY, &xWindSpeedTaskHandle);
+                TASK_WIND_SPEED_PRIORITY, &xWindSpeedTaskHandle)==pdPASS);
 
     
 
@@ -419,9 +422,9 @@ void StartTask(void *pvParameters)
 
     // 优先级是5，栈空间是256字节，调用MotorControlTask函数，任务句柄是xMotorControlTaskHandle
 
-    xTaskCreate(MotorControlTask, "Motor", TASK_MOTOR_STK_SIZE, NULL,
+    configASSERT(xTaskCreate(MotorControlTask, "Motor", TASK_MOTOR_STK_SIZE, NULL,
 
-                TASK_MOTOR_PRIORITY, &xMotorControlTaskHandle);
+                TASK_MOTOR_PRIORITY, &xMotorControlTaskHandle)==pdPASS);
 
     
 
@@ -429,9 +432,9 @@ void StartTask(void *pvParameters)
 
     // 优先级是1，栈空间是256字节，调用UIDisplayTask函数，任务句柄是xUIDisplayTaskHandle
 
-    xTaskCreate(UIDisplayTask, "UI", TASK_UI_STK_SIZE, NULL,
+    configASSERT(xTaskCreate(UIDisplayTask, "UI", TASK_UI_STK_SIZE, NULL,
 
-                TASK_UI_PRIORITY, &xUIDisplayTaskHandle);
+                TASK_UI_PRIORITY, &xUIDisplayTaskHandle)==pdPASS);
 
     
 
@@ -439,9 +442,9 @@ void StartTask(void *pvParameters)
 
     // 优先级是2，栈空间是64字节，调用AntiBackflowTask函数，任务句柄是xAntiBackflowTaskHandle
 
-    xTaskCreate(AntiBackflowTask, "AntiBF", TASK_ANTI_BACKFLOW_STK_SIZE, NULL,
+    configASSERT(xTaskCreate(AntiBackflowTask, "AntiBF", TASK_ANTI_BACKFLOW_STK_SIZE, NULL,
 
-                TASK_ANTI_BACKFLOW_PRIORITY, &xAntiBackflowTaskHandle);
+                TASK_ANTI_BACKFLOW_PRIORITY, &xAntiBackflowTaskHandle)==pdPASS);
 
     
 
@@ -449,9 +452,9 @@ void StartTask(void *pvParameters)
 
     // 优先级是6，栈空间是128字节，调用SpeedCalcTask函数，任务句柄是xSpeedCalcTaskHandle
 
-    xTaskCreate(SpeedCalcTask, "SpeedCalc", TASK_SPEED_CALC_STK_SIZE, NULL,
+    configASSERT(xTaskCreate(SpeedCalcTask, "SpeedCalc", TASK_SPEED_CALC_STK_SIZE, NULL,
 
-                TASK_SPEED_CALC_PRIORITY, &xSpeedCalcTaskHandle);
+                TASK_SPEED_CALC_PRIORITY, &xSpeedCalcTaskHandle)==pdPASS);
 
 #if ifopen  
 
@@ -459,17 +462,17 @@ void StartTask(void *pvParameters)
 
     // 优先级是7，栈空间是256字节，调用iap_task函数，任务句柄是xIAPTaskHandle
 
-    xTaskCreate(iap_task, "IAP", TASK_IAP_STK_SIZE, NULL,
+    configASSERT(xTaskCreate(iap_task, "IAP", TASK_IAP_STK_SIZE, NULL,
 
-                TASK_IAP_PRIORITY, &xIAPTaskHandle);
+                TASK_IAP_PRIORITY, &xIAPTaskHandle)==pdPASS);
 
 #endif                
 
     /* 【A档 P4】创建看门狗任务（放在最后创建：等其它任务都进循环后才有意义） */
 
-    xTaskCreate(WatchdogTask, "WDT", TASK_WDT_STK_SIZE, NULL,
+    configASSERT(xTaskCreate(WatchdogTask, "WDT", TASK_WDT_STK_SIZE, NULL,
 
-                TASK_WDT_PRIORITY, &xWdtTaskHandle);
+                TASK_WDT_PRIORITY, &xWdtTaskHandle)==pdPASS);
 
     /* 初始化TIM4定时器（必须在信号量创建后调用，避免HardFault）
 
@@ -494,67 +497,34 @@ void StartTask(void *pvParameters)
     if (App_SelfTest() != 0U)
     {
         App_Confirm_Healthy();
+        s_appReady=1;
     }
+    else { App_Fatal(); }
+
     /* 删除开始任务 */
+    g_startStackFree=uxTaskGetStackHighWaterMark(NULL);
+    g_minFreeHeap=xPortGetMinimumEverFreeHeapSize();
     vTaskDelete(xStartTaskHandle);
 }
 
 
 
-/*-----------------------------------------------------------
-
- * A档 P4: 看门狗喂狗任务 - 周期1s, 优先级8
-
- * 设计要点（面试可讲）：
- *   1. 喂狗的不是"每个任务各喂各的"，而是本任务统一喂：只有所有周期任务的
- *      心跳位都到齐才喂。这样"某个任务卡死"和"某个任务忘了喂狗"都能被发现。
- *   2. 本任务自己不置心跳位 —— 它要是卡死了狗自然没人喂，硬件复位，
- *      不存在"看门狗任务死了还在喂狗"的假象。
- *   3. 升级会话期间豁免任务心跳判定：W25QXX 擦除最坏要几百 ms 甚至数秒，
- *      此时用任务心跳判断会误判成卡死、把升级中途打断（真实踩过的坑）。
- *      豁免是限时的（Iap_SessionExempt）：会话帧间静默超时或会话总时长超限时，
- *      本任务收回豁免并恢复判活 —— 发豁免和收豁免放在同一处，才不会漏收。
- *----------------------------------------------------------*/
+/* Monitor task freshness / bounded IAP progress; do not mutate IAP state here. */
 void WatchdogTask(void *pvParameters)
 {
-    (void)pvParameters;
-    while (1)
-    {
-        /* 先睡 1s：给其它任务一整轮时间置位心跳（所有任务周期都 <= 100ms） */
-        vTaskDelay(pdMS_TO_TICKS(1000));
-
-        if (g_iapUpgradeActive != 0U)
-        {
-            /* 升级中：片外 Flash 擦写可能长时间占用 CPU/总线，不做任务级判定。
-             * 【A档 P1 修复】但豁免必须有限期：由 IAP 会话自己的时间戳决定是否到期
-             * （帧间静默超时 / 会话总时长超限）。到期就收回豁免，本周期直接落到
-             * 下面按正常心跳判活 —— 否则一次异常就能让豁免永久生效，任务级死锁
-             * 检测等于被永久关掉（这是原实现的真实缺陷）。 */
-            if (Iap_SessionExempt(xTaskGetTickCount()) != 0U)
-            {
-                g_taskHeartbeat = 0U;
-                g_wdtMissMask    = 0U;
-                IWDG->KR = IWDG_KR_RELOAD;
-                continue;
-            }
-            Iap_SessionDrop();   /* 超时：清会话活跃位与串口门控，恢复正常判活 */
-        }
-
-        if (g_taskHeartbeat == HB_ALL)
-        {
-            g_wdtMissMask = 0U;
-            g_taskHeartbeat = 0U;       /* 清位，下一轮重新收集 */
-            IWDG->KR = IWDG_KR_RELOAD;  /* 全员健在，喂狗 */
-        }
-        else
-        {
-            /* 有心跳位没到齐：本周期不喂狗。
-             * 1s 后 IWDG 硬件复位；复位前把缺的位存进 g_wdtMissMask，
-             * 便于在调试器里看到是哪个任务卡死了。 */
-            g_wdtMissMask = (uint16_t)(HB_ALL & (~g_taskHeartbeat));
-            g_taskHeartbeat = 0U;
-        }
-    }
+ uint32_t now,i;uint16_t missing;uint8_t alive;
+ (void)pvParameters;
+ while(1){
+  vTaskDelay(pdMS_TO_TICKS(250));now=xTaskGetTickCount();missing=0;
+  taskENTER_CRITICAL();
+  for(i=0;i<7;i++)if((g_taskHeartbeat&(1U<<i))==0U || (uint32_t)(now-s_taskLast[i])>1500U)missing|=(uint16_t)(1U<<i);
+  taskEXIT_CRITICAL();
+  g_wdtMissMask=missing;
+  alive=(missing==0);
+  if(g_iapUpgradeActive)alive=((uint32_t)(now-s_progressTick)<1500U && (uint32_t)(now-s_operationStart)<IAP_SESSION_MAX_MS);
+  if(alive){IWDG->KR=IWDG_KR_RELOAD;if(!g_iapUpgradeActive)s_healthyRounds++;}
+  else s_healthyRounds=0;
+ }
 }
 
 /*-----------------------------------------------------------
@@ -568,7 +538,8 @@ void KeyScanTask(void *pvParameters)
     KeyEvent_t key1Event, key2Event;
     while (1)
     {
-        g_taskHeartbeat |= HB_KEYSCAN;   /* A档P4: 报告我还在跑 */
+        Heartbeat(HB_KEYSCAN);   /* A档P4: 报告我还在跑 */
+        if(g_iapUpgradeActive || !s_appReady){vTaskDelay(pdMS_TO_TICKS(10));continue;}
         /* 扫描按键 */
         Key_Scan();
         /* 获取按键1事件（模式切换） */
@@ -662,11 +633,12 @@ void SensorTask(void *pvParameters)
     u8 ret;
     while (1)
     {
-        g_taskHeartbeat |= HB_SENSOR;   /* A档P4: 报告我还在跑 */
+        Heartbeat(HB_SENSOR);   /* A档P4: 报告我还在跑 */
         /* 读取DHT11数据 */
         ret = DHT_Read_Data(&temp,&humi,GPIOC, GPIO_Pin_14, &dht);
         if (ret == 1)/*如果校验成功*/
         {
+            s_sensorValid=1;s_sensorValidTick=xTaskGetTickCount();
             /*如果此处获取2个传感器数据使用同一把锁，会导致占用资源时间过长，
             更容易带来优先级反转问题；因此此处采用两把锁*/
             if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
@@ -705,7 +677,7 @@ void WindSpeedTask(void *pvParameters)
     /*如果此处获取传感器和更新系统状态使用同一把锁，会导致占用资源时间过长，更容易带来优先级反转问题*/
     while (1)
     {
-        g_taskHeartbeat |= HB_WINDSPEED;   /* A档P4: 报告我还在跑 */
+        Heartbeat(HB_WINDSPEED);   /* A档P4: 报告我还在跑 */
         /* 获取传感器数据 */
         if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
         {
@@ -747,7 +719,8 @@ void MotorControlTask(void *pvParameters)
         // CCR寄存器的比较值，用于设置PWM占空比
         // CCR=0表示PWM占空比为0%，CCR=MAXCCR表示PWM占空比为100%
         u16 pwmCompare = 0;
-        g_taskHeartbeat |= HB_MOTOR;   /* A档P4: 报告电机任务还在跑（必须放在变量声明之后，C90 不允许声明出现在语句之后） */
+        Heartbeat(HB_MOTOR);   /* A档P4: 报告电机任务还在跑（必须放在变量声明之后，C90 不允许声明出现在语句之后） */
+        if(g_iapUpgradeActive || !s_appReady){motor_stop();vTaskDelay(pdMS_TO_TICKS(50));continue;}
         /* 获取实际转速 */
 
         if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
@@ -1082,7 +1055,7 @@ void UIDisplayTask(void *pvParameters)
 
     {
 
-        g_taskHeartbeat |= HB_UI;   /* A档P4: 报告我还在跑 */
+        Heartbeat(HB_UI);   /* A档P4: 报告我还在跑 */
 
         /* 显示当前模式 */
 
@@ -1178,7 +1151,8 @@ void AntiBackflowTask(void *pvParameters)
 
     {
 
-        g_taskHeartbeat |= HB_ANTIBACKFLOW;   /* A档P4: 报告我还在跑 */
+        Heartbeat(HB_ANTIBACKFLOW);
+        if(g_iapUpgradeActive || !s_appReady){vTaskDelay(pdMS_TO_TICKS(100));continue;}   /* A档P4: 报告我还在跑 */
 
         /* 判断是否是防回流模式 */
 
@@ -1272,495 +1246,61 @@ void AntiBackflowTask(void *pvParameters)
 
 ---------------------------------------------------------------*/	  
 
+static BootMeta_t s_startMeta;
+static uint8_t App_SelfTest(void){
+ uint32_t start=xTaskGetTickCount();
+ while((uint32_t)(xTaskGetTickCount()-start)<5000U)vTaskDelay(pdMS_TO_TICKS(100));
+ if(s_healthyRounds<16U || !s_sensorValid || (uint32_t)(xTaskGetTickCount()-s_sensorValidTick)>1500U)return 0;
+ if(!W25QXX_Ready() || !BootStore_Read(&s_startMeta))return 0;
+ return BootImage_SizeValid(&s_startMeta.active) &&
+   BootCrc32((const uint8_t*)MCU_APP_ADDR,s_startMeta.active.size)==s_startMeta.active.crc32;
+}
+void App_Confirm_Healthy(void){
+ if(!BootStore_Read(&s_startMeta))App_Fatal();
+ if(s_startMeta.ota_state==OTA_STATE_TESTING){
+  s_startMeta.ota_state=OTA_STATE_IDLE;s_startMeta.confirmed=1;s_startMeta.boot_retry_cnt=0;
+  if(s_startMeta.active.version>s_startMeta.version_floor)s_startMeta.version_floor=s_startMeta.active.version;
+  if(!BootStore_Write(&s_startMeta))App_Fatal();
+ }
+}
 #if ifopen
-
-
-/* APP 自检 (A档 P0)：返回 1 表示健康、可以转正；返回 0 表示不转正，等 Bootloader 回滚。
- *
- * 检查项：
- *   1) 调度器时基活着 —— vTaskDelay 之后 tick 必须真的走过；
- *   2) 镜像完整性 —— 仅当元数据说"当前处于 TESTING 试运行"时才逐字节核对
- *      片内 APP 区镜像的 CRC32 与元数据声明是否一致。
- *      为什么要加条件：如果设备是被 ST-Link 直接烧写的(开发场景)，元数据里的
- *      app_size/app_crc32 可能是上一版固件留下的，无条件比对会把好固件判成坏的；
- *      而一旦 ota_state==TESTING，就说明"这个 APP 区是 Bootloader 刚搬进来的"，
- *      此时比对才有意义，且能真正拦住"搬运/Flash 写坏"这类故障。 */
-static uint8_t App_SelfTest(void)
-{
-    BootMeta_t meta_a, meta_b, meta;
-    uint32_t   tick_before;
-
-    /* --- 1) 时基存活 --- */
-    tick_before = (uint32_t)xTaskGetTickCount();
-    vTaskDelay(pdMS_TO_TICKS(50));
-    if ((uint32_t)((uint32_t)xTaskGetTickCount() - tick_before) < 40U)
-    {
-        return 0U;
-    }
-
-    /* --- 2) 镜像完整性（仅试运行阶段） --- */
-    W25QXX_Read((uint8_t*)&meta_a, SPI_META_A_ADDR, BOOT_META_SIZE);
-    W25QXX_Read((uint8_t*)&meta_b, SPI_META_B_ADDR, BOOT_META_SIZE);
-    if (BootMeta_SelectBest(&meta_a, &meta_b, &meta) == 0U)
-    {
-        /* 两份元数据都读不出来(比如片外 Flash 没焊/首次上电)：不阻塞启动 */
-        return 1U;
-    }
-
-    if ((meta.ota_state == (uint32_t)OTA_STATE_TESTING) &&
-        (meta.confirmed == 0U) &&
-        (meta.app_size != 0U) &&
-        (meta.app_size <= MCU_APP_MAX_SIZE))
-    {
-        if (BootCrc32((const uint8_t*)MCU_APP_ADDR, meta.app_size) != meta.app_crc32)
-        {
-            return 0U;   /* 片内镜像与元数据不符：不转正，交给 Bootloader 回滚 */
-        }
-    }
-
-    return 1U;
+static uint32_t IapPlatform_Tick(void){return xTaskGetTickCount();}
+static void IapPlatform_Progress(void){FlashProgress();}
+static int IapPlatform_Enter(void){
+ if(!s_appReady || !W25QXX_Ready())return 0;
+ xSemaphoreTake(g_dataMutex,portMAX_DELAY);
+ g_iapUpgradeActive=1;s_progressTick=s_operationStart=xTaskGetTickCount();
+ motor_stop();g_systemState.motorRunning=0;g_systemState.currentMode=MODE_STANDBY;
+ xSemaphoreGive(g_dataMutex);return 1;
 }
-
-/* APP启动自检成功转正函数 (清除试运行标志，避免被Bootloader回滚)
- * A档 P2: 元数据改为 A/B 双槽 + seq 序号，本函数同样走"选最优槽 -> 写旧槽"流程 */
-void App_Confirm_Healthy(void)
-{
-    BootMeta_t meta_a, meta_b, meta;
-    uint32_t   seq = 0U;
-    uint32_t   addr;
-
-    W25QXX_Read((uint8_t*)&meta_a, SPI_META_A_ADDR, BOOT_META_SIZE);
-    W25QXX_Read((uint8_t*)&meta_b, SPI_META_B_ADDR, BOOT_META_SIZE);
-    (void)BootMeta_SelectBest(&meta_a, &meta_b, &meta);
-
-    if (meta.ota_state == (uint32_t)OTA_STATE_TESTING && meta.confirmed == 0U)
-    {
-        meta.ota_state      = (uint32_t)OTA_STATE_IDLE;
-        meta.boot_retry_cnt = 0U;
-        meta.confirmed      = 1U;
-
-        addr = BootMeta_NextSlotAddr(&meta_a, &meta_b, &meta, &seq);
-        meta.seq = seq;
-        BootMeta_Finalize(&meta);
-
-        W25QXX_Erase_Sector(addr / 4096U);
-        W25QXX_Write((uint8_t*)&meta, addr, BOOT_META_SIZE);
-
-        #if DEBUG
-        printf("Firmware self-test passed: officially confirmed!\r\n");
-        #endif
-    }
+static void IapPlatform_Exit(void){g_iapUpgradeActive=0;}
+static int IapPlatform_Maintenance(void){return s_maintenance && KEY1_READ()==KEY_PRESSED_LEVEL;}
+static void IapPlatform_ReadApp(uint32_t off,uint8_t*p,uint32_t n){memcpy(p,(const void*)(MCU_APP_ADDR+off),n);}
+static void IapPlatform_Restart(void){vTaskDelay(pdMS_TO_TICKS(30));NVIC_SystemReset();}
+static void IapPlatform_Send(const uint8_t*p,uint32_t n){
+ uint32_t i,start;
+ for(i=0;i<n;i++){
+  start=xTaskGetTickCount();
+  while(USART_GetFlagStatus(USART1,USART_FLAG_TXE)==RESET)if((uint32_t)(xTaskGetTickCount()-start)>100U)return;
+  USART_SendData(USART1,p[i]);
+ }
 }
-
-/*=================== A档 P1: 分片流式升级会话 ===================*/
-/* 旧实现把整包固件一次性塞进 4KB 接收缓冲，固件一大就必然溢出。
- * 新实现改为 帧驱动 + 边收边写片外 Flash，彻底解掉 4KB 上限。 */
-
-typedef struct {
-    uint32_t fw_size;      /* BEGIN 声明的固件总长度 */
-    uint32_t fw_crc32;     /* BEGIN 声明的整镜像 CRC32 */
-    uint32_t fw_version;   /* 版本号 */
-		uint32_t next_offset;  /* 期望的下一个 DATA 偏移(等于已写字节数) */
-    uint32_t recv_crc;     /* 逐帧流式 CRC32 的中间态 */
-    uint32_t lastRxTick;   /* 【A档 P1 修复】最近一帧被处理的时刻(tick)，判"帧间静默" */
-    uint32_t startTick;    /* 【A档 P1 修复】会话起点(收到合法 BEGIN)的时刻(tick)，判会话总时长 */
-    uint16_t last_seq;     /* 上一帧序号 */
-    uint8_t  active;       /* 1 = 升级会话进行中 */
-		uint8_t  fw_hmac[IAP_HMAC_LEN];  /* 【A档 P3】BEGIN 帧携带的镜像 HMAC-SHA256 */ //数组复制要用memcpy
-} IapSession_t;
-
-static IapSession_t s_iap;
-/* 【A档 P3】验签上下文放静态区：IAP 任务栈只有 1KB，SHA256_CTX 有 ~100B，
- * 若放栈上容易把栈吃紧；静态化后不随函数调用进栈。 */
-static SHA256_CTX   s_hmacCtx;
-static uint8_t      s_tx_frame[64];   /* ACK/NAK 帧最长 14B，留足余量 */
-
-/* 阻塞式发送原始字节：IAP 会话期间 DMA 接收已停用，可直接占用 USART1 */
-static void Iap_SendRaw(const uint8_t *buf, uint32_t len)
-{
-    uint32_t i;
-    for (i = 0U; i < len; i++)
-    {
-        while (USART_GetFlagStatus(USART1, USART_FLAG_TC) == RESET) { }
-        USART_SendData(USART1, buf[i]);
-    }
+#include "iap_service.h"
+static IapStream_t s_stream;
+void iap_task(void *pvParameters){
+ uint8_t b;uint32_t count;
+ (void)pvParameters;
+ while(1){
+  if(s_appReady){
+   if(IapRx_Overflow()){s_stream.used=0;Iap_Drop();}
+   for(count=0;count<2048U && IapRx_Read(&b);count++)IapStream_Push(&s_stream,b,Iap_HandleFrame);
+   Iap_Poll();
+   if(s_iap.active)FlashProgress();
+  }else {while(IapRx_Read(&b)){}s_stream.used=0;}
+  g_iapStackFree=uxTaskGetStackHighWaterMark(NULL);
+  vTaskDelay(pdMS_TO_TICKS(2));
+ }
 }
-
-static void Iap_ReplyAck(uint16_t seq)
-{
-    uint32_t n = IapProto_BuildAck(s_tx_frame, seq);
-    if (n > 0U) { Iap_SendRaw(s_tx_frame, n); }
-}
-
-static void Iap_ReplyNak(uint16_t seq, uint8_t err)
-{
-    uint32_t n = IapProto_BuildNak(s_tx_frame, seq, err);
-    if (n > 0U) { Iap_SendRaw(s_tx_frame, n); }
-}
-
-/* 命令1: BEGIN —— 校验长度上限、擦除下载暂存区、复位会话 */
-static void Iap_OnBegin(const IapFrame_t *fr)
-{
-		// 检验BEGIN帧的payload（size整个bin包大小、crc32整bin包、version版本号、hmac）= 44字节
-    if (fr->len != IAP_BEGIN_PAYLOAD_LEN)
-    {
-			// 回复报错，数据长度丢包
-        Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);
-        return;
-    }
-		// 检查lengh(payload) = 44字节正常
-    s_iap.fw_size    = IapProto_GetU32(&fr->payload[0]);
-    s_iap.fw_crc32   = IapProto_GetU32(&fr->payload[4]);
-    s_iap.fw_version = IapProto_GetU32(&fr->payload[8]);		// 数值标量用=复制
-    /* 【A档 P3】payload[12..43] = 镜像 HMAC-SHA256，先存下来，END 阶段逐块重算比对 */
-    memcpy(s_iap.fw_hmac, &fr->payload[12], IAP_HMAC_LEN);  // 数组要用memcpy复制
-		// 整个bin包的大小不能超过APP分区 56KB，判定为坏包
-    if ((s_iap.fw_size == 0U) || (s_iap.fw_size > IAP_FW_MAX_SIZE))
-    {
-        s_iap.active = 0U;
-        Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);
-        return;
-    }
-		/* 擦除指定地址和长度的连续区域 (自动向上对齐扇区) */
-    W25QXX_Erase_Range(SPI_DOWNLOAD_ADDR, s_iap.fw_size);
-
-    s_iap.next_offset = 0U;
-    s_iap.recv_crc    = BootCrc32Begin();
-    s_iap.last_seq    = fr->seq;
-    s_iap.active      = 1U;
-    /* 【A档 P1 修复】给"升级豁免"计时：起点 = 收到合法 BEGIN 的时刻；
-     * lastRxTick 随后每帧推进，看门狗据此判"帧间静默超时"，
-     * 保证豁免只在一个有界的会话里成立，不会退化成永久豁免。 */
-    s_iap.startTick   = xTaskGetTickCount();
-    s_iap.lastRxTick  = s_iap.startTick;
-
-    /* 【A档 P0】开门：只有收到合法 BEGIN 之后，串口才进入"升级会话"模式。
-     * 升级期间上位机可以继续用任意帧格式(它不再需要满足 0xA5 0x5A 帧头
-     * 之外的判定)，这样调试/扩展都不会被帧头判定挡住。 */
-    g_iapUpgradeActive = 1U;
-		// 回复成功接收序号seq分包
-    Iap_ReplyAck(fr->seq);
-}
-
-/* 命令2: DATA —— 偏移必须连续，边写边算流式 CRC */
-static void Iap_OnData(const IapFrame_t *fr)
-{
-    uint32_t off;
-    uint32_t data_len;
-    const uint8_t *src;
-
-    if (s_iap.active == 0U) { Iap_ReplyNak(fr->seq, IAP_ERR_STATE); return; }
-    if (fr->len < 4U)       { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);  return; }
-
-    off      = IapProto_GetU32(&fr->payload[0]);
-    data_len = (uint32_t)fr->len - 4U;
-		// offset[4] + data[1024]
-    src      = &fr->payload[4];
-
-    /* 【A档 P1】重传幂等：如果上一帧的 ACK 在串口上丢了，上位机会重发同一帧。
-     * 此时数据其实已经收下并落盘，必须补一个 ACK 而不是报"偏移不连续"，
-     * 否则一次丢 ACK 就会把整次升级判死。判据：本帧恰好覆盖刚刚写过的那段。 */
-		// 当前帧序号等于上一帧序号，并且偏移量等于下一帧偏移量，说明已完成W25Q64的flash写入，不需要重复写入
-    if ((fr->seq == s_iap.last_seq) && ((off + data_len) == s_iap.next_offset))
-    {
-			// 回复ACK，接收成功
-        Iap_ReplyAck(fr->seq);
-        return;
-    }
-
-    /* 偏移不连续 -> 拒绝，由上位机按 ACK/NAK 重传 */
-    if (off != s_iap.next_offset)                  { Iap_ReplyNak(fr->seq, IAP_ERR_OFFSET); return; }
-    if ((off + data_len) > s_iap.fw_size)          { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);   return; }
-    if (data_len > IAP_DATA_PAYLOAD_LEN)           { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);   return; }
-		// 写入分包bin到W25Q64的下载暂存区
-    W25QXX_Write((uint8_t*)(uint32_t)src, SPI_DOWNLOAD_ADDR + off, (uint16_t)data_len);
-		// 计算分包bin的crc
-    s_iap.recv_crc    = BootCrc32Update(s_iap.recv_crc, src, data_len);
-		// ACK丢失重发的依据，就是已经经过这里一次了，如果PC端没有接收到ACK，就不必要再经过这里重新写入W25Q64
-    s_iap.next_offset = off + data_len;
-    s_iap.last_seq    = fr->seq;
-
-    Iap_ReplyAck(fr->seq);
-}
-
-/* 命令3: END —— 长度/CRC 双重核对，通过则置 PENDING_APPLY 并复位交给 Bootloader */
-static void Iap_OnEnd(const IapFrame_t *fr)
-{
-		// W25Q的账本A,B
-    BootMeta_t meta_a, meta_b, meta;
-    uint32_t   seq = 0U;
-    uint32_t   addr;
-
-    if (s_iap.active == 0U) { Iap_ReplyNak(fr->seq, IAP_ERR_STATE); return; }
-    if (fr->len < 8U)       { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);  return; }
-		
-		// 检测BEGIN帧的整包bin尺寸和crc。若不一致，则END帧为坏包
-    if ((IapProto_GetU32(&fr->payload[0]) != s_iap.fw_size) ||
-        (IapProto_GetU32(&fr->payload[4]) != s_iap.fw_crc32))
-    {
-        Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);
-        return;
-    }
-		// 检测帧crc，不一致则为坏包
-    if (s_iap.next_offset != s_iap.fw_size)             { Iap_ReplyNak(fr->seq, IAP_ERR_SIZE); return; }
-    if (BootCrc32End(s_iap.recv_crc) != s_iap.fw_crc32) { Iap_ReplyNak(fr->seq, IAP_ERR_CRC);  return; }
-
-    /* 【A档 P3】HMAC-SHA256 验签（方案B：验签在 APP 侧，BL 保持极简）
-     * CRC32 只能防"传输出错"，防不了"有人拿串口塞一份改过的固件"：
-     * CRC32 是线性的、攻击者可随手重算，HMAC 需要预共享密钥才算得出来。
-     * 这里从暂存区回读整镜像、按 4KB 分块流式重算 HMAC，与 BEGIN 声明的签名比对。 */
-    {
-        uint32_t off = 0U;					// 已回读的偏移（从 0 开始推进）
-        uint32_t chunk;							// 这一轮要读多少字节
-        uint8_t  mac[IAP_HMAC_LEN]; // 实算出来的签名，等下拿去比对
-				// 利用sha256算法，输入特定32字节密钥，计算出一个32字节的数组
-        HmacSha256_Init(&s_hmacCtx, g_iapHmacKey, IAP_HMAC_KEY_LEN);
-			// 从W25Q的下载暂存区，回读完整bin包，进行哈希签名计算检测
-        while (off < s_iap.fw_size)
-        {
-            chunk = s_iap.fw_size - off;  //尝试读bin包大小
-					// 再削到缓冲区可读上限buff_size = 2048
-            if (chunk > (uint32_t)buff_size) { chunk = (uint32_t)buff_size; }
-						// 从暂存区读一块
-            W25QXX_Read(receive_buff, SPI_DOWNLOAD_ADDR + off, (uint16_t)chunk);
-            // 喂进哈希链
-						Sha256_Update(&s_hmacCtx, receive_buff, chunk);
-            off += chunk;
-        }
-				
-        HmacSha256_Final(&s_hmacCtx, g_iapHmacKey, IAP_HMAC_KEY_LEN, mac);
-				// 判决BEGIN帧的哈希签名，与这里计算的哈希签名是否一致
-        if (memcmp(mac, s_iap.fw_hmac, IAP_HMAC_LEN) != 0)
-        {
-            /* 验签失败：直接作废本次会话，绝不写 PENDING_APPLY */
-            s_iap.active       = 0U;
-            g_iapUpgradeActive = 0U;
-            Show_Str(0, 120, RED, WHITE, "HMAC FAIL! Reject", 16, 0);
-            Iap_ReplyNak(fr->seq, IAP_ERR_HMAC);
-            return;
-        }
-    }
-		// 读取W25Q的A/B账本，挑,选较新的账本进行升级记录
-    W25QXX_Read((uint8_t*)&meta_a, SPI_META_A_ADDR, BOOT_META_SIZE);
-    W25QXX_Read((uint8_t*)&meta_b, SPI_META_B_ADDR, BOOT_META_SIZE);
-    (void)BootMeta_SelectBest(&meta_a, &meta_b, &meta);
-
-    if ((meta.max_retry == 0U) || (meta.max_retry > 100U))
-    {
-			// 重启次数最大为3次
-        meta.max_retry = BOOT_META_MAX_RETRY;
-    }
-
-    meta.app_size       = s_iap.fw_size;
-    meta.app_crc32      = s_iap.fw_crc32;
-    meta.fw_version     = s_iap.fw_version;
-		// 升级状态
-		//（正常运行、新固件已到W25Q，等待Bootloader搬运、新固件已刷入stm32，正在试运行阶段、试运行失败，触发回滚旧固件）
-    meta.ota_state      = (uint32_t)OTA_STATE_PENDING_APPLY;
-    // 重启计数
-		meta.boot_retry_cnt = 0U;
-		// 1为升级完成
-    meta.confirmed      = 0U;
-		// 选择A或B，其中一个旧账本，进行新固件信息记录
-    addr = BootMeta_NextSlotAddr(&meta_a, &meta_b, &meta, &seq);
-    meta.seq = seq;
-    // 给账本计算CRC，以后读取这些账本都可以通过CRC值校验,SPI传输是否正常
-		BootMeta_Finalize(&meta);
-		// 擦除旧账本4KB
-    W25QXX_Erase_Sector(addr / 4096U);
-		// 写入账本新信息
-    W25QXX_Write((uint8_t*)&meta, addr, BOOT_META_SIZE);
-
-    s_iap.active       = 0U;
-    g_iapUpgradeActive = 0U;
-    Iap_ReplyAck(fr->seq);
-		// 写入完成，开始准备软复位
-    Show_Str(0, 100, BLUE, WHITE, "Save OK! Rebooting...", 16, 0);
-    vTaskDelay(pdMS_TO_TICKS(200));   /* 等 ACK 发完再复位 */
-    NVIC_SystemReset();
-}
-
-/* 命令4: ABORT —— 放弃本次升级会话 */
-static void Iap_OnAbort(const IapFrame_t *fr)
-{
-    s_iap.active       = 0U;
-    g_iapUpgradeActive = 0U;
-    Iap_ReplyAck(fr->seq);
-}
-
-/* 从 0x08002000 起扫描 0xFF 反推当前运行固件实际长度（4 字节对齐） */
-static uint32_t App_Detect_FwLength(void)
-{
-    const uint8_t *base = (const uint8_t *)MCU_APP_ADDR;
-    uint32_t i = MCU_APP_MAX_SIZE;
-
-    while ((i > 0U) && (base[i - 1U] == 0xFFU)) { i--; }
-    if (i == 0U) { return 0U; }
-    return (i + 3U) & ~3U;
-}
-
-/* 命令5: BURN_GOLDEN —— 把当前运行区固件固化成黄金镜像(P6) */
-// 写入到W25Q中的黄金镜像区中
-static void Iap_OnBurnGolden(const IapFrame_t *fr)
-{
-    BootMeta_t meta_a, meta_b, meta;
-    uint32_t   seq = 0U;
-    uint32_t   addr, off = 0U, chunk, len, crc;
-		// 检测当前APP固件的长度
-    len = App_Detect_FwLength();
-    if ((len == 0U) || (len > MCU_APP_MAX_SIZE))
-    {
-        Iap_ReplyNak(fr->seq, IAP_ERR_SIZE);
-        return;
-    }
-
-    W25QXX_Erase_Range(SPI_GOLDEN_ADDR, len);
-
-    crc = BootCrc32Begin();
-    while (off < len)
-    {
-        chunk = (len - off > (uint32_t)buff_size) ? (uint32_t)buff_size : (len - off);
-        memcpy(receive_buff, (const void *)(MCU_APP_ADDR + off), chunk);
-        crc = BootCrc32Update(crc, receive_buff, chunk);
-        W25QXX_Write(receive_buff, SPI_GOLDEN_ADDR + off, (uint16_t)chunk);
-        off += chunk;
-    }
-    crc = BootCrc32End(crc);
-
-    W25QXX_Read((uint8_t*)&meta_a, SPI_META_A_ADDR, BOOT_META_SIZE);
-    W25QXX_Read((uint8_t*)&meta_b, SPI_META_B_ADDR, BOOT_META_SIZE);
-    (void)BootMeta_SelectBest(&meta_a, &meta_b, &meta);
-
-    meta.golden_size  = len;
-    meta.golden_crc32 = crc;
-
-    addr = BootMeta_NextSlotAddr(&meta_a, &meta_b, &meta, &seq);
-    meta.seq = seq;
-    BootMeta_Finalize(&meta);
-
-    W25QXX_Erase_Sector(addr / 4096U);
-    W25QXX_Write((uint8_t*)&meta, addr, BOOT_META_SIZE);
-
-    Iap_ReplyAck(fr->seq);
-}
-
-/*=================== 【A档 P1 修复】豁免时限 + 收回 ===================*/
-/* 背景：升级期间 iap_task 会长时间陷在 W25QXX 擦除/回读里，只靠"任务心跳"判活会把
- * 正常擦除误判成卡死（真实踩过的坑），所以 WatchdogTask 在升级会话期间放行喂狗。
- * 缺陷：原实现的放行条件是"会话还活着"，而"会话还活着"的判据算错了 —— 它拿"本帧
- * 到达时刻"当"上一帧时刻"去和当前时刻相减，差值恒为 0，判据永不成立；于是掉线或异常
- * 之后 g_iapUpgradeActive 卡在 1，豁免变成永久豁免，任务级死锁检测被永久关掉。
- * 修法：豁免改成"限时"，时间戳由会话结构体维护，且"发豁免"与"收豁免"都在
- * WatchdogTask 一处完成（同一处开关才不会漏收）：
- *   ① 帧间静默超时：上位机掉线不再发帧，lastRxTick 不再推进；
- *   ② 会话总时长超限：上位机在线但会话异常拖长（例如反复重传同一帧）。
- * 任一命中即由 Iap_SessionDrop() 收回豁免、恢复正常判活，最坏后果收敛成
- * "真卡死时最多 IAP_RX_TIMEOUT_MS + 1s(看门狗周期) 后被 IWDG 复位"。
- * 判据是 boot_config.h 里的纯宏 IAP_SESSION_IS_STALE（无 RTOS 依赖），
- * 已在主机侧单测覆盖（tools/host_test/test_shared.c）。 */
-static uint8_t Iap_SessionExempt(uint32_t now)
-{
-    if (s_iap.active == 0U) { return 0U; }   /* 没有活跃会话：本就不该有豁免 */
-    /* 两条判据任一命中即"会话已失效"，返回 0 = 豁免不再有效 */
-    return (uint8_t)(IAP_SESSION_IS_STALE(now, s_iap.lastRxTick, s_iap.startTick) ? 0U : 1U);
-}
-
-/* 收回豁免：清会话活跃标志 + 串口升级门控，让 WatchdogTask 恢复正常任务判活。
- * 注意：这里不重新武装 DMA —— DMA 的武装点唯一在 iap_task 循环末尾和 IDLE 中断的
- * 非 IAP 分支，从看门狗任务插一脚会与 iap_task 抢接收缓冲，反而制造竞态。
- * 若 iap_task 真的已卡死，DMA 停着也无妨：1s 内 IWDG 就把整个系统复位了。 */
-static void Iap_SessionDrop(void)
-{
-    s_iap.active       = 0U;
-    g_iapUpgradeActive = 0U;
-}
-/* 帧分发：解析失败静默丢弃（修掉旧版"串口收到任意数据就进升级流程"的缺陷） */
-static void Iap_HandleFrame(uint8_t *buf, uint32_t avail)
-{
-    IapFrame_t fr;
-		// 单帧CRC校验是否通过，返回need总长度 > 0
-    if (IapProto_ParseFrame(buf, avail, &fr) <= 0)
-    {
-        return;
-    }
-		// 通过之后，从结构体fr进行帧类型处理（begin、data、end）
-    switch (fr.type)
-    {
-        case IAP_CMD_BEGIN:       Iap_OnBegin(&fr);       break;
-        case IAP_CMD_DATA:        Iap_OnData(&fr);        break;
-        case IAP_CMD_END:         Iap_OnEnd(&fr);         break;
-        case IAP_CMD_ABORT:       Iap_OnAbort(&fr);       break;
-        case IAP_CMD_BURN_GOLDEN: Iap_OnBurnGolden(&fr);  break;
-        default:                                          break;
-    }
-}
-
-/*--------------------------------------------------------------
-
-*@brief: 固件升级任务（帧驱动，一帧一 ACK）
-
-*@para: *pvParameters
-
-*@return: none
-
----------------------------------------------------------------*/
-void iap_task(void *pvParameters)
-{
-    uint16_t receivedLength;
-    uint32_t frameTick;
-
-    (void)pvParameters;
-
-    while (1)
-    {
-        xSemaphoreTake(g_iapSemaphore, portMAX_DELAY);
-
-        /* 【A档 P1】取"空闲中断那一刻"锁存的快照，而不是现在去读 CNDTR。
-         * 旧代码的隐患：本任务优先级最低，被抢占期间如果又进来一串字节，
-         * CNDTR 已经变了，现读会把两帧粘成"一帧"，长度和内容全错，
-         * 表现为"偶发 CRC 校验失败 / 帧长非法"，很难复现。 */
-        receivedLength = g_iapFrameLen;
-        frameTick      = g_iapFrameTick;
-        g_iapFrameLen  = 0U;
-
-        /* 【A档 P1 修复】升级会话超时检测（这里原来有个真缺陷）
-         * 旧代码：(xTaskGetTickCount() - frameTick) > IAP_RX_TIMEOUT_MS ——
-         * frameTick 是"本帧到达的时刻"(IDLE 中断里锁存的)，而这里紧接着就去读当前
-         * 时刻，两者差值≈0，这个判据永远不成立：掉线检测形同虚设，g_iapUpgradeActive
-         * 一旦置 1 就再也回不去，看门狗的任务级判活被永久豁免。
-         * 现在判的是"上一帧和本帧之间隔了多久"：
-         *   frameTick(本帧到达时刻) - s_iap.lastRxTick(上一帧处理时刻)；
-         * 再加一条"会话总时长上限"，防止"一直在线但异常拖长"的会话无限占用豁免。
-         * 无符号相减天然处理 tick 回绕。 */
-        if ((s_iap.active != 0U) &&
-            (IAP_SESSION_IS_STALE((uint32_t)frameTick, s_iap.lastRxTick, s_iap.startTick) != 0U))
-        {
-            Iap_SessionDrop();   /* 半截会话作废，等上位机重新 BEGIN */
-        }
-				// 通过超时检测之后，开始单帧长度检测是否正常
-        if ((receivedLength > 0U) && (receivedLength <= buff_size))
-        {
-						// 单帧长度检测正常，下一步进行单帧解包
-            Iap_HandleFrame(receive_buff, (uint32_t)receivedLength);
-            /* 【A档 P1 修复】本帧已处理：把"最后一帧时刻"推进到本帧到达时刻，供看门狗判静默。
-             * 放在处理之后，是因为 BEGIN/END/ABORT 可能已经把会话关掉，关掉后不该再刷时间戳。 */
-            if (s_iap.active != 0U) { s_iap.lastRxTick = (uint32_t)frameTick; }
-        }
-
-        /* 本帧处理完：清缓冲并重新武装 DMA，等下一帧 */
-        memset(receive_buff, 0, buff_size);
-        MYDMA_Enable(DMA1_Channel5);
-    }
-}
-
-#else
-/* ifopen==0：整个升级功能被裁掉，但 WatchdogTask 里对这两个函数的调用是在
- * #if 之外（它只依赖 g_iapUpgradeActive），所以这里必须给一对空实现，
- * 否则"把 ifopen 改成 0 就不用升级功能"会直接链接失败。
- * 这两个空实现永远不会被真正调用：ifopen==0 时 g_iapUpgradeActive 恒为 0。
- * 【A档 P1 修复】 */
-static uint8_t Iap_SessionExempt(uint32_t now) { (void)now; return 0U; }
-static void    Iap_SessionDrop(void)           { }
 #endif
 
 /*-----------------------------------------------------------
@@ -1772,6 +1312,7 @@ static void    Iap_SessionDrop(void)           { }
 void System_SwitchMode(void)
 
 {
+    if(g_iapUpgradeActive || !s_appReady)return;
 
     if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
 
@@ -1844,6 +1385,7 @@ void System_SwitchMode(void)
 void System_SwitchSpeedLevel(void)
 
 {
+    if(g_iapUpgradeActive || !s_appReady)return;
 
     if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
 
@@ -1886,6 +1428,7 @@ void System_SwitchSpeedLevel(void)
 void System_ToggleMotor(void)
 
 {
+    if(g_iapUpgradeActive || !s_appReady)return;
 
     if (xSemaphoreTake(g_dataMutex, portMAX_DELAY) == pdTRUE)
 
@@ -1967,7 +1510,7 @@ void SpeedCalcTask(void *pvParameters)
 
     {
 
-        g_taskHeartbeat |= HB_SPEEDCALC;   /* A档P4: 报告我还在跑 */
+        Heartbeat(HB_SPEEDCALC);   /* A档P4: 报告我还在跑 */
 
         /* 等待TIM4中断发送的信号量 */
 

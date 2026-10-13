@@ -338,7 +338,7 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls></MiscControls>
-              <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER,VECT_TAB_OFFSET=0x2000</Define>
+              <Define>STM32F10X_MD,USE_STDPERIPH_DRIVER,VECT_TAB_OFFSET=0x2000,APP_USE_RTOS</Define>
               <Undefine></Undefine>
               <IncludePath>..\SYSTEM\delay;..\SYSTEM\sys;..\SYSTEM\usart;..\USER;..\CORE;..\STM32F10x_FWLib\inc;..\FreeRTOS\include;..\FreeRTOS\portable\RVDS\ARM_CM3;..\BSP\BEEP;..\BSP\DHT11;..\BSP\DMA;..\BSP\EXTI;..\BSP\IAP;..\BSP\KEY;..\BSP\LCD;..\BSP\SPI;..\BSP\STMFLASH;..\BSP\MOTOR;..\BSP\GPIO;..\BSP\PID;..\BSP\MQ2;..\BSP\WIND;..\APP_TASK;..\BSP\KEY;..\BSP\CRC32;..\BSP\W25QXX;..\Shared</IncludePath>
             </VariousControls>
@@ -673,6 +673,31 @@
               <FileName>sha256.h</FileName>
               <FileType>5</FileType>
               <FilePath>..\Shared\sha256.h</FilePath>
+            </File>
+            <File>
+              <FileName>boot_auth.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\boot_auth.h</FilePath>
+            </File>
+            <File>
+              <FileName>boot_flow.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\boot_flow.h</FilePath>
+            </File>
+            <File>
+              <FileName>boot_store.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\boot_store.h</FilePath>
+            </File>
+            <File>
+              <FileName>iap_stream.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\iap_stream.h</FilePath>
+            </File>
+            <File>
+              <FileName>iap_service.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Shared\iap_service.h</FilePath>
             </File>
           </Files>
         </Group>

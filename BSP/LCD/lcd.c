@@ -78,13 +78,15 @@ void LCD_WR_REG(u8 data)
 
 { 
 
+   SPI_BusLock();
    LCD_CS_CLR;               // 1. 点名：叫醒屏幕 (CS = 0)
 
    LCD_RS_CLR;	             // 2. 关键！RS=0：通知屏幕“听好了，这是命令！”
 
    SPI_WriteByte(SPI1,data); // 3. 把 8 位的指令发过去
 
-   LCD_CS_SET;	             // 4. 点名结束 (CS = 1)
+   LCD_CS_SET;
+   SPI_BusUnlock();	             // 4. 点名结束 (CS = 1)
 
 }
 
@@ -106,13 +108,15 @@ void LCD_WR_DATA(u8 data)
 
 {
 
+   SPI_BusLock();
    LCD_CS_CLR;               // 1. 点名叫醒
 
    LCD_RS_SET;               // 2. 关键！RS=1：通知屏幕“这是颜色数据，给我涂上去！”
 
    SPI_WriteByte(SPI1,data); // 3. 把 8 位颜色发过去
 
-   LCD_CS_SET;	             // 4. 点名结束
+   LCD_CS_SET;
+   SPI_BusUnlock();	             // 4. 点名结束
 
 }
 
@@ -182,6 +186,7 @@ void Lcd_WriteData_16Bit(u16 Data)
 
 {	
 
+   SPI_BusLock();
    LCD_CS_CLR;
 
    LCD_RS_SET;                  // 是颜色数据
@@ -191,6 +196,7 @@ void Lcd_WriteData_16Bit(u16 Data)
    SPI_WriteByte(SPI1,Data);    // 再发低8位颜色 (比如绿的剩下部分和蓝)
 
    LCD_CS_SET;
+   SPI_BusUnlock();
 
 }
 
@@ -242,7 +248,8 @@ void LCD_Clear(u16 Color)
 
 	LCD_SetWindows(0,0,lcddev.width-1,lcddev.height-1);   
 
-	LCD_CS_CLR;
+	SPI_BusLock();
+   LCD_CS_CLR;
 
 	LCD_RS_SET;
 
@@ -261,6 +268,7 @@ void LCD_Clear(u16 Color)
 	}
 
 	 LCD_CS_SET;
+   SPI_BusUnlock();
 
 } 
 

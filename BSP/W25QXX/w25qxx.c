@@ -1,153 +1,173 @@
-/********************************************************************************
- * 文件名: w25qxx.c
- * 描  述: 专为 W25Q64 定制的极简 SPI-Flash 底层驱动
- *        复用工程硬件 SPI1（PA5: SCK, PA6: MISO, PA7: MOSI）
- *        片选采用独立引脚 PB12
- ********************************************************************************/
 #include "w25qxx.h"
 #include "SPI.h"
-
-/* 发送/接收一个字节 (复用工程已有 SPI1) */
-static uint8_t W25QXX_SPI_ReadWriteByte(uint8_t TxData)
+static int s_ready;
+static void (*s_progress)(void);
+static void (*s_wait)(void);
+#define CYCLE_COUNT (*(volatile uint32_t *)0xE0001004U)
+void W25QXX_SetHooks(void (*progress)(void), void (*wait)(void))
 {
-    return SPI_WriteByte(SPI1, TxData);
+    s_progress = progress;
+    s_wait = wait;
 }
-
-/* 开启写使能 WEL */
-static void W25QXX_Write_Enable(void)
+int W25QXX_Ready(void)
 {
+    return s_ready;
+}
+static void Begin(void)
+{
+    SPI_BusLock();
+    SPI_ClearError();
     W25QXX_CS_LOW();
-    W25QXX_SPI_ReadWriteByte(W25X_WriteEnable);
-    W25QXX_CS_HIGH();
 }
-
-/* 等待芯片内部写/擦操作完成 (BUSY位清零) */
-static void W25QXX_Wait_Busy(void)
+static int End(void)
 {
-    uint8_t status = 0;
-    W25QXX_CS_LOW();
-    W25QXX_SPI_ReadWriteByte(W25X_ReadStatusReg);
-    do {
-        status = W25QXX_SPI_ReadWriteByte(0xFF);
-    } while ((status & 0x01) == 0x01);
+    int ok = !SPI_HasError();
     W25QXX_CS_HIGH();
+    SPI_BusUnlock();
+    return ok;
 }
-
-/* 初始化 W25Q64 引脚 */
-void W25QXX_Init(void)
+static uint8_t X(uint8_t b)
 {
-    GPIO_InitTypeDef GPIO_InitStructure;
-
+    return SPI_HasError() ? 0xFFU : SPI_WriteByte(SPI1, b);
+}
+static void Addr(uint8_t cmd, uint32_t a)
+{
+    X(cmd);
+    X((uint8_t)(a >> 16));
+    X((uint8_t)(a >> 8));
+    X((uint8_t)a);
+}
+static int Busy(uint32_t ms)
+{
+    uint32_t start = CYCLE_COUNT, limit = (SystemCoreClock / 1000U) * ms;
+    uint8_t st;
+    int ok;
+    do
+    {
+        Begin();
+        X(W25X_ReadStatusReg);
+        st = X(0xFF);
+        ok = End();
+        if (!ok)
+            return 0;
+        if ((st & 1U) == 0U)
+            return 1;
+        if (s_wait)
+            s_wait();
+    } while ((uint32_t)(CYCLE_COUNT - start) < limit);
+    return 0;
+}
+static int Enable(void)
+{
+    uint8_t st;
+    if (!Busy(800U))
+        return 0;
+    Begin();
+    X(W25X_WriteEnable);
+    if (!End())
+        return 0;
+    Begin();
+    X(W25X_ReadStatusReg);
+    st = X(0xFF);
+    return End() && (st & 2U) != 0;
+}
+int W25QXX_Init(void)
+{
+    GPIO_InitTypeDef gpio;
+    uint8_t a, b, c;
+    /* DWT cycle counter: works in both bare-metal boot and scheduled APP. */
+    *(volatile uint32_t *)0xE000EDFCU |= 1U << 24;
+    *(volatile uint32_t *)0xE0001000U |= 1U;
     RCC_APB2PeriphClockCmd(W25QXX_CS_RCC, ENABLE);
-
-    /* 配置 PB12 为推挽输出 (片选 CS) */
-    GPIO_InitStructure.GPIO_Pin = W25QXX_CS_PIN;
-    GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-    GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-    GPIO_Init(W25QXX_CS_PORT, &GPIO_InitStructure);
-
-    W25QXX_CS_HIGH(); // 默认释放总线
-
-    /* 确保 SPI1 外设已使能初始化 */
+    GPIO_SetBits(W25QXX_CS_PORT, W25QXX_CS_PIN);
+    gpio.GPIO_Pin = W25QXX_CS_PIN;
+    gpio.GPIO_Mode = GPIO_Mode_Out_PP;
+    gpio.GPIO_Speed = GPIO_Speed_50MHz;
+    GPIO_Init(W25QXX_CS_PORT, &gpio);
     SPI1_Init();
+    Begin();
+    X(W25X_JedecDeviceID);
+    a = X(0xFF);
+    b = X(0xFF);
+    c = X(0xFF);
+    s_ready = End() && a == 0xEFU && b == 0x40U && c == 0x17U;
+    return s_ready;
 }
-
-/* 擦除一个 W25Q64 最小可擦除块4KB 扇区 */
-void W25QXX_Erase_Sector(uint32_t Dst_Addr)
-{
-    Dst_Addr *= 4096; // 换算成字节物理基地址
-    W25QXX_Write_Enable();
-    W25QXX_Wait_Busy();
-
-    W25QXX_CS_LOW();
-    W25QXX_SPI_ReadWriteByte(W25X_SectorErase);
-    W25QXX_SPI_ReadWriteByte((uint8_t)((Dst_Addr) >> 16));
-    W25QXX_SPI_ReadWriteByte((uint8_t)((Dst_Addr) >> 8));
-    W25QXX_SPI_ReadWriteByte((uint8_t)Dst_Addr);
-    W25QXX_CS_HIGH();
-
-    W25QXX_Wait_Busy();
-}
-
-/* 擦除指定地址和长度的连续区域 (自动向上对齐扇区) */
-void W25QXX_Erase_Range(uint32_t StartAddr, uint32_t Length)
-{
-    uint32_t start_sec = StartAddr / 4096;
-    uint32_t end_sec   = (StartAddr + Length - 1) / 4096;
-    uint32_t i;
-
-    for (i = start_sec; i <= end_sec; i++) {
-        W25QXX_Erase_Sector(i);
-    }
-}
-
-/* 从 W25Q64 读取数据 */
-void W25QXX_Read(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead)
+int W25QXX_Read(uint8_t *b, uint32_t addr, uint16_t len)
 {
     uint16_t i;
-    W25QXX_CS_LOW();
-    W25QXX_SPI_ReadWriteByte(W25X_ReadData);
-    W25QXX_SPI_ReadWriteByte((uint8_t)((ReadAddr) >> 16));
-    W25QXX_SPI_ReadWriteByte((uint8_t)((ReadAddr) >> 8));
-    W25QXX_SPI_ReadWriteByte((uint8_t)ReadAddr);
-
-    for (i = 0; i < NumByteToRead; i++) {
-        pBuffer[i] = W25QXX_SPI_ReadWriteByte(0xFF);
-    }
-    W25QXX_CS_HIGH();
+    if (!s_ready || addr > W25Q64_FLASH_SIZE || len > W25Q64_FLASH_SIZE - addr)
+        return 0;
+    Begin();
+    Addr(W25X_ReadData, addr);
+    for (i = 0; i < len; i++)
+        b[i] = X(0xFF);
+    return End();
 }
-
-/* 单页写入 (最多 256 字节，且不可跨页) */
-static void W25QXX_Write_Page(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite)
+int W25QXX_Erase_Sector(uint32_t sector)
 {
-    uint16_t i;
-    W25QXX_Write_Enable();
-    W25QXX_CS_LOW();
-    W25QXX_SPI_ReadWriteByte(W25X_PageProgram);
-    W25QXX_SPI_ReadWriteByte((uint8_t)((WriteAddr) >> 16));
-    W25QXX_SPI_ReadWriteByte((uint8_t)((WriteAddr) >> 8));
-    W25QXX_SPI_ReadWriteByte((uint8_t)WriteAddr);
-
-    for (i = 0; i < NumByteToWrite; i++) {
-        W25QXX_SPI_ReadWriteByte(pBuffer[i]);
-    }
-    W25QXX_CS_HIGH();
-    W25QXX_Wait_Busy();
+    uint32_t addr = sector * 4096U;
+    if (!s_ready || sector >= W25Q64_FLASH_SIZE / 4096U || !Enable())
+        return 0;
+    Begin();
+    Addr(W25X_SectorErase, addr);
+    if (!End() || !Busy(800U))
+        return 0;
+    if (s_progress)
+        s_progress();
+    return 1;
 }
-
-/* 跨页自动切分连续写入函数 */
-void W25QXX_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite)
+int W25QXX_Erase_Range(uint32_t addr, uint32_t len)
 {
-    uint16_t pageremain;
-    pageremain = 256 - WriteAddr % 256; // 单页剩余空间
-    if (NumByteToWrite <= pageremain) {
-        pageremain = NumByteToWrite;
-    }
-
-    while (1) {
-        W25QXX_Write_Page(pBuffer, WriteAddr, pageremain);
-        if (NumByteToWrite == pageremain) {
-            break; // 写入完成
-        } else {
-            pBuffer += pageremain;
-            WriteAddr += pageremain;
-            NumByteToWrite -= pageremain;
-            if (NumByteToWrite > 256) {
-                pageremain = 256;
-            } else {
-                pageremain = NumByteToWrite;
-            }
+    uint32_t i, end;
+    if (!len || addr >= W25Q64_FLASH_SIZE || len > W25Q64_FLASH_SIZE - addr)
+        return 0;
+    end = (addr + len - 1U) / 4096U;
+    for (i = addr / 4096U; i <= end; i++)
+        if (!W25QXX_Erase_Sector(i))
+            return 0;
+    return 1;
+}
+int W25QXX_Write(uint8_t *b, uint32_t addr, uint16_t len)
+{
+    uint16_t n, i, left = len;
+    uint8_t verify[32];
+    if (!s_ready || !len || addr >= W25Q64_FLASH_SIZE || len > W25Q64_FLASH_SIZE - addr)
+        return 0;
+    while (left)
+    {
+        n = (uint16_t)(256U - addr % 256U);
+        if (n > left)
+            n = left;
+        if (!Enable())
+            return 0;
+        Begin();
+        Addr(W25X_PageProgram, addr);
+        for (i = 0; i < n; i++)
+            X(b[i]);
+        if (!End() || !Busy(20U))
+            return 0;
+        for (i = 0; i < n;)
+        {
+            uint16_t j, k = (uint16_t)(n - i);
+            if (k > sizeof(verify))
+                k = sizeof(verify);
+            if (!W25QXX_Read(verify, addr + i, k))
+                return 0;
+            for (j = 0; j < k; j++)
+                if (verify[j] != b[i + j])
+                    return 0;
+            i = (uint16_t)(i + k);
         }
+        if (s_progress)
+            s_progress();
+        addr += n;
+        b += n;
+        left = (uint16_t)(left - n);
     }
+    return 1;
 }
-
-/* 擦除整颗芯片 */
-void W25QXX_Erase_Chip(void)
+int W25QXX_Erase_Chip(void)
 {
-    W25QXX_Write_Enable();
-    W25QXX_Wait_Busy();
-    W25QXX_CS_LOW();
-    W25QXX_SPI_ReadWriteByte(W25X_ChipErase);
-    W25QXX_CS_HIGH();
-    W25QXX_Wait_Busy();
+    return W25QXX_Erase_Range(0, W25Q64_FLASH_SIZE);
 }

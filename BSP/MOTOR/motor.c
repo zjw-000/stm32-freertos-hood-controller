@@ -1,5 +1,8 @@
 #include "motor.h"
 #include "gpiox.h"
+#ifdef APP_USE_RTOS
+#include "iap.h"
+#endif
 /***********************
 *项目名：电机驱动头文件
 *修改日期：2026/2/1
@@ -122,7 +125,15 @@ void motor_stop(void)
 /* 电机启动 */
 void motor_start(void)
 {
-	io_set_bit(GPIOA,GPIO_Pin_2);						//使能驱动H桥电路	
+#ifdef APP_USE_RTOS
+    uint32_t mask=__get_PRIMASK();__disable_irq();
+    if(g_iapUpgradeActive){if(!mask)__enable_irq();return;}
+#endif
+	io_set_bit(GPIOA,GPIO_Pin_2);
+#ifdef APP_USE_RTOS
+    if(!mask)__enable_irq();
+#endif
+ // 使能驱动H桥电路
 }
 
 /* 电机方向控制 */
@@ -163,6 +174,10 @@ void motor_speed(u16 ccr)
 void motor_pwm_set(float para)
 {
     int val = (int)para;
+#ifdef APP_USE_RTOS
+    uint32_t mask=__get_PRIMASK();__disable_irq();
+    if(g_iapUpgradeActive){if(!mask)__enable_irq();return;}
+#endif
 
     if (val >= 0) 
     {
@@ -174,6 +189,9 @@ void motor_pwm_set(float para)
         motor_dir(invert);           /* 反转 */
         motor_speed(-val);
     }
+#ifdef APP_USE_RTOS
+    if(!mask)__enable_irq();
+#endif
 }
 
 /******************************************** 以下为编码器测速部分代码 *****************************************/

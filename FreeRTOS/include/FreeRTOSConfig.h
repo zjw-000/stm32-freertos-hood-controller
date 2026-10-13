@@ -128,7 +128,8 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 #define vAssertCalled(char,int) printf("Error:%s,%d\r\n",char,int)
 
-#define configASSERT(x) if((x)==0) vAssertCalled(__FILE__,__LINE__)
+void App_Fatal(void);
+#define configASSERT(x) do { if(!(x)) App_Fatal(); } while(0)
 
 /***************************************************************************************************************/
 
@@ -174,7 +175,7 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
                                                                         //记录的队列和信号量最大数
 
-#define configCHECK_FOR_STACK_OVERFLOW			0                       //大于0时启用堆栈溢出测功能，如果使用此功
+#define configCHECK_FOR_STACK_OVERFLOW			2                       //大于0时启用堆栈溢出测功能，如果使用此功
 
                                                                         //用户必须提供栈溢出钩子函数，如果使用的话
 
@@ -182,7 +183,7 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 #define configUSE_RECURSIVE_MUTEXES				1                       //1时使用归互斥信号
 
-#define configUSE_MALLOC_FAILED_HOOK			0                       //1使用内存申失败钩子函
+#define configUSE_MALLOC_FAILED_HOOK			1                       //1使用内存申失败钩子函
 
 #define configUSE_APPLICATION_TASK_TAG			0                       
 
@@ -196,7 +197,7 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 #define configSUPPORT_DYNAMIC_ALLOCATION        1                       //持动态内存申
 // freertos内核移置10KB 动堆空间
-#define configTOTAL_HEAP_SIZE					((size_t)(10*1024))     //系统有的堆大/*若分配的过大会致内存不足此分配为10K，根任务要自行划/
+#define configTOTAL_HEAP_SIZE					((size_t)(12*1024))     //系统有的堆大/*若分配的过大会致内存不足此分配为10K，根任务要自行划/
 
 /***************************************************************************************************************/
 
@@ -270,6 +271,7 @@ http://www.SafeRTOS.com - High Integrity Systems also provide a safety
 
 #define INCLUDE_vTaskDelay				        1
 
+#define INCLUDE_uxTaskGetStackHighWaterMark 1
 #define INCLUDE_eTaskGetState			        1
 
 #define INCLUDE_xTimerPendFunctionCall	        1

@@ -1,17 +1,8 @@
-/********************************************************************************
- * 文件名: iap_hmac_key.h   (Shared)
- * 功  能: 【A档 P3】IAP 固件镜像 HMAC-SHA256 验签用的预共享密钥
- *
- * 算法选型说明（受 Bootloader 8KB Flash 约束）：
- *   - Ed25519 验签实现通常 6~8KB，塞不进 BL；AES-CMAC/HMAC-SHA256 约 1~2KB。
- *   - 采用 HMAC-SHA256，并且按"方案B"把校验放在 APP 侧（BL 保持极简），
- *     所以这个头文件只被 APP 工程包含。
- *   - 密钥明文编入固件属于"防误刷/防篡改"级别，不是防逆向：
- *     量产时应改为"每台一密"并存放于片内 Flash 的读写保护页/OTP 区，
- *     同时上位机签名工具改为使用产线私钥。
- *
- * ⚠️ 本文件里的密钥是开发用占位值，正式发布前必须替换。
- ********************************************************************************/
+/* HMAC-SHA256 manifest authentication, shared by APP and Bootloader.
+ * Development builds use a PUBLIC test key. Define IAP_PRODUCTION and supply
+ * ignored iap_production_key.h for a privately provisioned 32-byte key.
+ * A key compiled in firmware does not prevent physical extraction. External
+ * metadata has CRC integrity, not a tamper-proof monotonic version counter. */
 #ifndef __IAP_HMAC_KEY_H
 #define __IAP_HMAC_KEY_H
 
@@ -19,6 +10,11 @@
 
 #define IAP_HMAC_KEY_LEN   32U
 
+/* Production builds require an out-of-repository provisioned key header.
+ * It must define static const uint8_t g_iapHmacKey[32]. */
+#ifdef IAP_PRODUCTION
+#include "iap_production_key.h"
+#else
 /* 开发用预共享密钥（32 字节，与 tools/sign_firmware.py 的 DEV_KEY 完全一致）：
  *   ASCII "GA-IAP-DEV-KEY-CHANGE-ME-32BYTES" 恰好 32 字节，无填充 */
 static const uint8_t g_iapHmacKey[IAP_HMAC_KEY_LEN] = {
@@ -28,4 +24,6 @@ static const uint8_t g_iapHmacKey[IAP_HMAC_KEY_LEN] = {
     0x2D, 0x33, 0x32, 0x42, 0x59, 0x54, 0x45, 0x53
 };
 
+#endif /* IAP_PRODUCTION */
+typedef char IapKeyMustBe32Bytes[(sizeof(g_iapHmacKey)==32U)?1:-1];
 #endif /* __IAP_HMAC_KEY_H */

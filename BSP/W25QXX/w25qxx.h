@@ -38,11 +38,14 @@
 #define W25X_JedecDeviceID      0x9F
 
 /* 驱动接口函数 */
-void W25QXX_Init(void);
-void W25QXX_Read(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead);
-void W25QXX_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite);
-void W25QXX_Erase_Sector(uint32_t Dst_Addr);
-void W25QXX_Erase_Range(uint32_t StartAddr, uint32_t Length);
-void W25QXX_Erase_Chip(void);
+int W25QXX_Init(void);
+int W25QXX_Read(uint8_t* pBuffer, uint32_t ReadAddr, uint16_t NumByteToRead);
+int W25QXX_Write(uint8_t* pBuffer, uint32_t WriteAddr, uint16_t NumByteToWrite);
+int W25QXX_Erase_Sector(uint32_t Dst_Addr);
+int W25QXX_Erase_Range(uint32_t StartAddr, uint32_t Length);
+int W25QXX_Erase_Chip(void);
 
+/* Progress runs only after a completed page/sector; wait hook must not feed blindly. */
+void W25QXX_SetHooks(void (*progress)(void), void (*wait)(void));
+int W25QXX_Ready(void);
 #endif

@@ -13,12 +13,12 @@
  *   1. A/B 双槽，物理上分属两个 4KB 扇区(SPI_META_A_ADDR / SPI_META_B_ADDR)；
  *   2. 每次写入都写到"较旧"的那一槽，并令 seq = 旧seq + 1；
  *   3. 读的时候两槽都读，各自校验，选 seq 更大的那个有效槽；
- *   4. meta_crc32 保护结构体前 76 字节，杜绝半写/位翻转被误当成有效元数据。
+ *   4. meta_crc32 保护结构体中 CRC 字段之前的所有字节，杜绝半写/位翻转被误当成有效元数据。
  *   这样任何时刻至少有一槽是完好的（写新槽时旧槽没被动过）。
  *
  * 本文件是**纯逻辑**，不碰任何硬件：
  *   真正的 SPI-Flash 读写在 Bootloader/main.c 与 APP 里完成，
- *   因此本文件可以被 PC 上的 gcc 直接编译做单元测试（见 tools/test_boot_meta.py）。
+ *   因此本文件可以被 PC 上的 gcc 直接编译做单元测试（见 tools/host_tests/run_iap_selftest.py）。
  ********************************************************************************/
 
 #include "boot_config.h"
@@ -42,7 +42,7 @@ static __inline int BootMeta_IsValid(const BootMeta_t *m)
     crc = BootCrc32((const uint8_t *)m, (uint32_t)(sizeof(BootMeta_t) - 4U));
     if (crc != m->meta_crc32)         return 0;
 
-    if (m->ota_state > (uint32_t)OTA_STATE_ROLLBACK) return 0;
+    if (m->ota_state > (uint32_t)OTA_STATE_RECOVERY) return 0;
 
     return 1;
 }
@@ -77,7 +77,7 @@ static __inline int BootMeta_SelectBest(const BootMeta_t *a, const BootMeta_t *b
     int vb = BootMeta_IsValid(b);
 
     if (va && vb) {
-        *out = (a->seq >= b->seq) ? *a : *b;
+        *out = ((int32_t)(a->seq - b->seq) >= 0) ? *a : *b;
         return 1;
     }
     if (va) { *out = *a; return 1; }
@@ -110,7 +110,7 @@ static __inline uint32_t BootMeta_NextSlotAddr(const BootMeta_t *a, const BootMe
     if (!vb) return SPI_META_B_ADDR;   /* B 槽无效 -> 覆盖 B */
 
     /* 两槽都有效：覆盖 seq 较小的那个（即较旧的那份） */
-    return (a->seq <= b->seq) ? SPI_META_A_ADDR : SPI_META_B_ADDR;
+    return ((int32_t)(a->seq - b->seq) >= 0) ? SPI_META_B_ADDR : SPI_META_A_ADDR;
 }
 
 #endif /* __BOOT_META_H */

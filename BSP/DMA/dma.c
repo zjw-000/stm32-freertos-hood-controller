@@ -35,7 +35,7 @@ void MYDMA_Config(DMA_Channel_TypeDef* DMA_CHx, u32 cpar, u32 cmar, u16 cndtr)
     DMA_InitStructure.DMA_MemoryDataSize = DMA_MemoryDataSize_Byte;         // 8位字节
 
     // 4. 工作模式与通道优先级
-    DMA_InitStructure.DMA_Mode = DMA_Mode_Normal;         // 单次正常模式
+    DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;         // 单次正常模式
     DMA_InitStructure.DMA_Priority = DMA_Priority_High;   // 高优先级
     DMA_InitStructure.DMA_M2M = DMA_M2M_Disable;          // 禁用内存到内存
 
@@ -43,7 +43,13 @@ void MYDMA_Config(DMA_Channel_TypeDef* DMA_CHx, u32 cpar, u32 cmar, u16 cndtr)
 
     // 说明：采用串口总线空闲中断(USART_IT_IDLE)统一管理截帧和信号量唤醒，
     // DMA作为静默搬运工，无需开启DMA TC中断，避免双重触发。
-    DMA_Cmd(DMA_CHx, ENABLE); // 使能通道，开始后台监听搬运
+    {
+        NVIC_InitTypeDef irq;
+        DMA_ITConfig(DMA_CHx,DMA_IT_HT|DMA_IT_TC|DMA_IT_TE,ENABLE);
+        irq.NVIC_IRQChannel=DMA1_Channel5_IRQn;irq.NVIC_IRQChannelPreemptionPriority=3;
+        irq.NVIC_IRQChannelSubPriority=0;irq.NVIC_IRQChannelCmd=ENABLE;NVIC_Init(&irq);
+    }
+    DMA_Cmd(DMA_CHx, ENABLE); // circular reception stays armed
 }
 
 // 重新开启一次DMA传输
@@ -54,18 +60,43 @@ void MYDMA_Enable(DMA_Channel_TypeDef* DMA_CHx)
     DMA_Cmd(DMA_CHx, ENABLE);                      // 重新使能开启接收
 }
 
-#if ifopen
-/* A档 P1: 本次接收长度快照。
- * 由 USART1 空闲中断在"停用 DMA 之后"写入，任务侧只读快照，
- * 避免任务上下文直接读 CNDTR 时与 DMA 硬件搬数产生竞态
- * （旧实现里 iap_task 自己读 CNDTR，若 DMA 已重新使能，读到的就是 4096 而不是本帧长度）。*/
-volatile uint16_t g_iapFrameLen  = 0;
-/* 本次 IDLE 发生的系统节拍，供 iap_task 判定"帧间超时" */
-volatile uint32_t g_iapFrameTick = 0;
 
-/* 取回本次 DMA 接收到的数据长度（快照版） */
-uint16_t GetReceivedDataLength(void)
-{
-    return g_iapFrameLen;
+
+#if ifopen
+extern u8 receive_buff[];
+#define RX_RING_SIZE 1024U
+static volatile uint16_t rx_head,rx_tail;
+static volatile uint8_t rx_overflow;
+static uint16_t dma_read;
+static uint8_t rx_ring[RX_RING_SIZE];
+/* USART1 and DMA5 IRQ have identical preemption priority, serializing producer.
+ * Only IAP task advances tail. Overflow invalidates the stream explicitly. */
+void IapRx_DrainDMA(void){
+ uint16_t pos=(uint16_t)(buff_size-DMA_GetCurrDataCounter(DMA1_Channel5)),next;
+ if(pos==buff_size)pos=0;
+ while(dma_read!=pos){
+  next=(uint16_t)((rx_head+1U)&(RX_RING_SIZE-1U));
+  if(next==rx_tail)rx_overflow=1;
+  else {rx_ring[rx_head]=receive_buff[dma_read];rx_head=next;}
+  dma_read=(uint16_t)((dma_read+1U)%buff_size);
+ }
+}
+void DMA1_Channel5_IRQHandler(void){
+ if(DMA_GetITStatus(DMA1_IT_TE5)!=RESET){
+  DMA_ClearITPendingBit(DMA1_IT_TE5);rx_overflow=1;dma_read=0;MYDMA_Enable(DMA1_Channel5);
+ }
+ if(DMA_GetITStatus(DMA1_IT_HT5)!=RESET || DMA_GetITStatus(DMA1_IT_TC5)!=RESET){
+  DMA_ClearITPendingBit(DMA1_IT_HT5|DMA1_IT_TC5);IapRx_DrainDMA();
+ }
+}
+int IapRx_Read(uint8_t*b){
+ if(rx_tail==rx_head)return 0;
+ *b=rx_ring[rx_tail];rx_tail=(uint16_t)((rx_tail+1U)&(RX_RING_SIZE-1U));return 1;
+}
+int IapRx_Overflow(void){
+ uint32_t mask=__get_PRIMASK();int overflow;
+ __disable_irq();overflow=rx_overflow;
+ if(overflow){rx_tail=rx_head;rx_overflow=0;}
+ if(!mask)__enable_irq();return overflow;
 }
 #endif
